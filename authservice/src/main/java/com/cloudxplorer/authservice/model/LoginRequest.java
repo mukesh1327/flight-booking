@@ -1,31 +1,40 @@
 package com.cloudxplorer.authservice.model;
 
 public class LoginRequest {
-    // Define fields for login request, e.g., username and password
-    private String username;
-    private String password;
+    private String code;
+    private String codeVerifier;
+    private String redirectUri;
 
     public LoginRequest() {
     }
 
-    public LoginRequest(String username, String password) {
-        this.username = username;
-        this.password = password;
+    public LoginRequest(String code, String codeVerifier, String redirectUri) {
+        this.code = code;
+        this.codeVerifier = codeVerifier;
+        this.redirectUri = redirectUri;
     }
 
-    public String getUsername() {
-        return username;
+    public String getCode() {
+        return code;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setCode(String code) {
+        this.code = code;
     }
 
-    public String getPassword() {
-        return password;
+    public String getCodeVerifier() {
+        return codeVerifier;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    public void setCodeVerifier(String codeVerifier) {
+        this.codeVerifier = codeVerifier;
+    }
+
+    public String getRedirectUri() {
+        return redirectUri;
+    }
+
+    public void setRedirectUri(String redirectUri) {
+        this.redirectUri = redirectUri;
     }
 }

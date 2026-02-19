@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PKCE Callback Tester</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --ink: #1c2434;
+      --muted: #5f6b7a;
+      --ok: #1f8a4c;
+      --warn: #9a6a00;
+      --line: #d7deea;
+      --accent: #0b6be8;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: linear-gradient(120deg, #eef3ff, #f8fbff);
+      color: var(--ink);
+      display: grid;
+      min-height: 100vh;
+      place-items: center;
+      padding: 20px;
+    }
+    .card {
+      width: min(860px, 96vw);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      padding: 20px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.4rem;
+    }
+    p {
+      margin: 6px 0 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .pill {
+      display: inline-block;
+      font-size: 0.82rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+    }
+    .ok { color: var(--ok); border-color: #b9e2c8; background: #f2fbf5; }
+    .warn { color: var(--warn); border-color: #ead8ab; background: #fff9ec; }
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+    textarea, input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: Consolas, monospace;
+      font-size: 0.9rem;
+      background: #fbfdff;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    button {
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #fff;
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>PKCE Callback Tester</h1>
+    <p>Use this page as your redirect URI: <code>http://localhost:3000/callback.html</code></p>
+    <p id="status" class="pill warn">Waiting for callback params...</p>
+
+    <label for="fullUrl">Full callback URL</label>
+    <textarea id="fullUrl" readonly></textarea>
+
+    <label for="code">Authorization code</label>
+    <textarea id="code" readonly></textarea>
+
+    <label for="state">State</label>
+    <input id="state" readonly>
+
+    <div class="row">
+      <button id="copyCode">Copy code</button>
+      <button id="copyUrl" class="secondary">Copy full URL</button>
+      <button id="clear" class="secondary">Clear</button>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var code = params.get("code") || "";
+      var state = params.get("state") || "";
+
+      var status = document.getElementById("status");
+      var fullUrl = document.getElementById("fullUrl");
+      var codeBox = document.getElementById("code");
+      var stateBox = document.getElementById("state");
+
+      fullUrl.value = window.location.href;
+      codeBox.value = code;
+      stateBox.value = state;
+
+      if (code) {
+        status.textContent = "Code received. You can copy and exchange it.";
+        status.className = "pill ok";
+      }
+
+      function copyText(value) {
+        if (!value) {
+          return;
+        }
+        navigator.clipboard.writeText(value);
+      }
+
+      document.getElementById("copyCode").addEventListener("click", function () {
+        copyText(codeBox.value);
+      });
+      document.getElementById("copyUrl").addEventListener("click", function () {
+        copyText(fullUrl.value);
+      });
+      document.getElementById("clear").addEventListener("click", function () {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        location.reload();
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authservice Role Tester</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --ink: #172130;
+      --muted: #5d6776;
+      --line: #d8e0ea;
+      --accent: #0b6be8;
+      --ok: #1d8b4a;
+      --err: #ba2d2d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: radial-gradient(circle at top left, #edf3ff, #f8fbff 42%, #f4f7fb);
+      color: var(--ink);
+      padding: 18px;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.4rem; }
+    h2 { margin: 0 0 8px; font-size: 1rem; }
+    p { margin: 6px 0; color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 6px 20px rgba(20, 30, 50, 0.05);
+    }
+    label { display: block; margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
+    input, textarea, select {
+      width: 100%;
+      padding: 8px 10px;
+      margin-top: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-family: Consolas, monospace;
+      font-size: 0.85rem;
+      background: #fbfdff;
+    }
+    textarea { min-height: 76px; resize: vertical; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    button {
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      padding: 7px 10px;
+      font-size: 0.83rem;
+      cursor: pointer;
+    }
+    button.alt {
+      background: #fff;
+      color: var(--accent);
+    }
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .ok { color: var(--ok); border-color: #bde4ca; background: #f2fbf5; }
+    .err { color: var(--err); border-color: #efbcbc; background: #fff2f2; }
+    pre {
+      margin: 8px 0 0;
+      background: #0f172a;
+      color: #dbeafe;
+      border-radius: 8px;
+      padding: 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 260px;
+      overflow: auto;
+      font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Authservice Dummy Frontend</h1>
+  <p>Use this page to run complete PKCE flow and test all role endpoints in real time.</p>
+
+  <div class="grid">
+    <section class="card">
+      <h2>1) Config + PKCE Login</h2>
+      <label>Backend base URL
+        <input id="baseUrl" value="http://localhost:8080">
+      </label>
+      <label>Redirect URI
+        <input id="redirectUri" value="http://localhost:3000/index.html">
+      </label>
+      <label>Correlation ID
+        <input id="correlationId" value="ui-test-001">
+      </label>
+      <div class="row">
+        <button id="startLogin">Start Login (PKCE)</button>
+        <button id="exchangeCode" class="alt">Exchange Code</button>
+        <button id="refreshToken" class="alt">Refresh</button>
+        <button id="logoutBtn" class="alt">Logout</button>
+      </div>
+
+      <label>Authorization code (auto from callback)
+        <textarea id="authCode"></textarea>
+      </label>
+      <label>Code verifier (stored after start login)
+        <textarea id="codeVerifier"></textarea>
+      </label>
+      <label>Token summary
+        <textarea id="tokenSummary" readonly></textarea>
+      </label>
+      <p><span id="loginStatus" class="pill">Not logged in</span></p>
+    </section>
+
+    <section class="card">
+      <h2>2) Customer APIs</h2>
+      <div class="row">
+        <button id="getProfile">GET /auth/profile</button>
+        <button id="updateProfile" class="alt">PUT /auth/profile</button>
+        <button id="deleteProfile" class="alt">DELETE /auth/profile</button>
+      </div>
+      <label>Update name
+        <input id="custName" value="Customer Updated From UI">
+      </label>
+      <label>Update phone
+        <input id="custPhone" value="8888888888">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>3) Admin APIs</h2>
+      <label>User email
+        <input id="adminEmail" value="sample.user@local.com">
+      </label>
+      <label>Create role
+        <select id="adminRole">
+          <option value="customer">customer</option>
+          <option value="support_agent">support_agent</option>
+          <option value="airline_ops">airline_ops</option>
+        </select>
+      </label>
+      <div class="row">
+        <button id="adminGet">GET /auth/admin/users</button>
+        <button id="adminCreate" class="alt">POST /auth/admin/users</button>
+        <button id="adminUpdate" class="alt">PUT /auth/admin/users</button>
+        <button id="adminDelete" class="alt">DELETE /auth/admin/users</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4) Support/Airline APIs</h2>
+      <label>Target customer email
+        <input id="targetEmail" value="sample.user@local.com">
+      </label>
+      <div class="row">
+        <button id="supportUpdate">PUT /auth/support/users</button>
+        <button id="airlineView" class="alt">GET /auth/airline/users</button>
+      </div>
+    </section>
+
+    <section class="card" style="grid-column: 1 / -1;">
+      <h2>Response log</h2>
+      <pre id="log"></pre>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      var keyPrefix = "authservice_tester_";
+      var logEl = document.getElementById("log");
+      var statusEl = document.getElementById("loginStatus");
+
+      function byId(id) { return document.getElementById(id); }
+      function baseUrl() { return byId("baseUrl").value.trim(); }
+      function redirectUri() { return byId("redirectUri").value.trim(); }
+      function cid() { return byId("correlationId").value.trim() || "ui-test-001"; }
+
+      function setStatus(text, cls) {
+        statusEl.className = "pill " + (cls || "");
+        statusEl.textContent = text;
+      }
+
+      function appendLog(title, data) {
+        var line = "### " + title + "\n" + (typeof data === "string" ? data : JSON.stringify(data, null, 2)) + "\n\n";
+        logEl.textContent = line + logEl.textContent;
+      }
+
+      function headers(withAuth) {
+        var h = {
+          "Content-Type": "application/json",
+          "x-correlation-id": cid()
+        };
+        if (withAuth) {
+          var token = localStorage.getItem(keyPrefix + "accessToken");
+          if (token) {
+            h.Authorization = "Bearer " + token;
+          }
+        }
+        return h;
+      }
+
+      async function callApi(method, path, body, withAuth) {
+        var opts = { method: method, headers: headers(withAuth) };
+        if (body !== undefined && body !== null) {
+          opts.body = JSON.stringify(body);
+        }
+        var res = await fetch(baseUrl() + path, opts);
+        var text = await res.text();
+        var parsed;
+        try { parsed = JSON.parse(text); } catch (e) { parsed = text; }
+        appendLog(method + " " + path + " [" + res.status + "]", parsed);
+        return { status: res.status, data: parsed };
+      }
+
+      function decodeJwtRoles(token) {
+        try {
+          var payload = token.split(".")[1];
+          var json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+          var obj = JSON.parse(json);
+          var roles = [];
+          if (obj.realm_access && Array.isArray(obj.realm_access.roles)) {
+            roles = roles.concat(obj.realm_access.roles);
+          }
+          if (obj.resource_access && obj.resource_access["authservice-client"] && Array.isArray(obj.resource_access["authservice-client"].roles)) {
+            roles = roles.concat(obj.resource_access["authservice-client"].roles);
+          }
+          return Array.from(new Set(roles));
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function updateTokenSummary() {
+        var at = localStorage.getItem(keyPrefix + "accessToken") || "";
+        var rt = localStorage.getItem(keyPrefix + "refreshToken") || "";
+        var roles = decodeJwtRoles(at);
+        byId("tokenSummary").value =
+          "accessToken: " + (at ? "present" : "missing") + "\n" +
+          "refreshToken: " + (rt ? "present" : "missing") + "\n" +
+          "roles: " + (roles.length ? roles.join(", ") : "(none)");
+        if (at) {
+          setStatus("Logged in. Roles: " + (roles.join(", ") || "(none)"), "ok");
+        } else {
+          setStatus("Not logged in", "");
+        }
+      }
+
+      async function startLogin() {
+        localStorage.setItem(keyPrefix + "redirectUri", redirectUri());
+        var res = await fetch(baseUrl() + "/auth/login/authorize?redirectUri=" + encodeURIComponent(redirectUri()), {
+          headers: { "x-correlation-id": cid() }
+        });
+        var data = await res.json();
+        appendLog("GET /auth/login/authorize [" + res.status + "]", data);
+        if (res.status >= 200 && res.status < 300) {
+          byId("codeVerifier").value = data.codeVerifier || "";
+          localStorage.setItem(keyPrefix + "codeVerifier", data.codeVerifier || "");
+          if (data.authorizationUrl) {
+            window.location.assign(data.authorizationUrl);
+          }
+        }
+      }
+
+      async function exchangeCode() {
+        var code = byId("authCode").value.trim();
+        var verifier = byId("codeVerifier").value.trim() || localStorage.getItem(keyPrefix + "codeVerifier");
+        var redir = redirectUri();
+        if (!code || !verifier) {
+          appendLog("Exchange Code", "Code or verifier missing.");
+          return;
+        }
+        var out = await callApi("POST", "/auth/login", {
+          code: code,
+          codeVerifier: verifier,
+          redirectUri: redir
+        }, false);
+        if (out.status >= 200 && out.status < 300) {
+          localStorage.setItem(keyPrefix + "accessToken", out.data.accessToken || "");
+          localStorage.setItem(keyPrefix + "refreshToken", out.data.refreshToken || "");
+          updateTokenSummary();
+        }
+      }
+
+      async function refreshToken() {
+        var rt = localStorage.getItem(keyPrefix + "refreshToken");
+        if (!rt) {
+          appendLog("Refresh", "Refresh token missing.");
+          return;
+        }
+        var out = await callApi("POST", "/auth/token/refresh", { refreshToken: rt }, false);
+        if (out.status >= 200 && out.status < 300) {
+          localStorage.setItem(keyPrefix + "accessToken", out.data.accessToken || "");
+          localStorage.setItem(keyPrefix + "refreshToken", out.data.refreshToken || "");
+          updateTokenSummary();
+        }
+      }
+
+      async function logout() {
+        var at = localStorage.getItem(keyPrefix + "accessToken");
+        var rt = localStorage.getItem(keyPrefix + "refreshToken");
+        if (!at || !rt) {
+          appendLog("Logout", "Access or refresh token missing.");
+          return;
+        }
+        await callApi("POST", "/auth/logout", { refreshToken: rt, accessToken: at }, true);
+        localStorage.removeItem(keyPrefix + "accessToken");
+        localStorage.removeItem(keyPrefix + "refreshToken");
+        localStorage.removeItem(keyPrefix + "codeVerifier");
+        updateTokenSummary();
+      }
+
+      async function customerUpdate() {
+        await callApi("PUT", "/auth/profile", {
+          name: byId("custName").value.trim(),
+          phone: byId("custPhone").value.trim()
+        }, true);
+      }
+
+      function randomDigits(len) {
+        var s = "";
+        for (var i = 0; i < len; i++) {
+          s += Math.floor(Math.random() * 10);
+        }
+        return s;
+      }
+
+      async function adminCreate() {
+        var ts = Date.now();
+        var email = byId("adminEmail").value.trim() || ("sample.user." + ts + "@local.com");
+        var username = "sample_user_" + ts;
+        var phone = randomDigits(10);
+        await callApi("POST", "/auth/admin/users", {
+          name: "Sample User",
+          username: username,
+          email: email,
+          password: "Support@123",
+          phone: phone,
+          role: byId("adminRole").value
+        }, true);
+      }
+
+      async function adminUpdate() {
+        var email = byId("adminEmail").value.trim();
+        await callApi("PUT", "/auth/admin/users?email=" + encodeURIComponent(email), {
+          name: "Updated By Admin UI",
+          phone: randomDigits(10),
+          role: byId("adminRole").value
+        }, true);
+      }
+
+      async function supportUpdate() {
+        var email = byId("targetEmail").value.trim();
+        await callApi("PUT", "/auth/support/users?email=" + encodeURIComponent(email), {
+          name: "Updated By Support UI",
+          phone: randomDigits(10)
+        }, true);
+      }
+
+      async function airlineView() {
+        var email = byId("targetEmail").value.trim();
+        await callApi("GET", "/auth/airline/users?email=" + encodeURIComponent(email), null, true);
+      }
+
+      byId("startLogin").addEventListener("click", startLogin);
+      byId("exchangeCode").addEventListener("click", exchangeCode);
+      byId("refreshToken").addEventListener("click", refreshToken);
+      byId("logoutBtn").addEventListener("click", logout);
+
+      byId("getProfile").addEventListener("click", function () { callApi("GET", "/auth/profile", null, true); });
+      byId("updateProfile").addEventListener("click", customerUpdate);
+      byId("deleteProfile").addEventListener("click", function () { callApi("DELETE", "/auth/profile", null, true); });
+
+      byId("adminGet").addEventListener("click", function () {
+        callApi("GET", "/auth/admin/users?email=" + encodeURIComponent(byId("adminEmail").value.trim()), null, true);
+      });
+      byId("adminCreate").addEventListener("click", adminCreate);
+      byId("adminUpdate").addEventListener("click", adminUpdate);
+      byId("adminDelete").addEventListener("click", function () {
+        callApi("DELETE", "/auth/admin/users?email=" + encodeURIComponent(byId("adminEmail").value.trim()), null, true);
+      });
+      byId("supportUpdate").addEventListener("click", supportUpdate);
+      byId("airlineView").addEventListener("click", airlineView);
+
+      var q = new URLSearchParams(window.location.search);
+      var code = q.get("code");
+      if (code) {
+        byId("authCode").value = code;
+        setStatus("Authorization code received. Click Exchange Code.", "ok");
+      }
+
+      var savedVerifier = localStorage.getItem(keyPrefix + "codeVerifier");
+      if (savedVerifier) {
+        byId("codeVerifier").value = savedVerifier;
+      }
+      var savedRedirect = localStorage.getItem(keyPrefix + "redirectUri");
+      if (savedRedirect) {
+        byId("redirectUri").value = savedRedirect;
+      }
+      updateTokenSummary();
+    })();
+  </script>
+</body>
+</html>

@@ -66,15 +66,19 @@ public class AuthProperties {
 
     public static class Rhbk {
         private String healthUrl = "http://localhost:8090/realms/authservice/.well-known/openid-configuration";
+        private String authorizationUrl = "http://localhost:8090/realms/authservice/protocol/openid-connect/auth";
         private String tokenUrl = "http://localhost:8090/realms/authservice/protocol/openid-connect/token";
         private String userInfoUrl = "http://localhost:8090/realms/authservice/protocol/openid-connect/userinfo";
         private String logoutUrl = "http://localhost:8090/realms/authservice/protocol/openid-connect/logout";
+        private String revocationUrl = "http://localhost:8090/realms/authservice/protocol/openid-connect/revoke";
         private String usersUrl = "http://localhost:8090/admin/realms/authservice/users";
         private String adminTokenUrl = "http://localhost:8090/realms/authservice/protocol/openid-connect/token";
         private String clientId = "authservice-client";
         private String clientSecret = "jXvZoiPpvazLf8VUl2qxbZHjBj66FSVN";
         private String adminClientId = "authservice-admin";
         private String adminClientSecret = "";
+        private String defaultRedirectUri = "http://localhost:3000/auth/callback";
+        private String defaultScope = "openid profile email";
         private int timeoutMs = 3000;
 
         public String getHealthUrl() {
@@ -93,6 +97,14 @@ public class AuthProperties {
             this.tokenUrl = tokenUrl;
         }
 
+        public String getAuthorizationUrl() {
+            return authorizationUrl;
+        }
+
+        public void setAuthorizationUrl(String authorizationUrl) {
+            this.authorizationUrl = authorizationUrl;
+        }
+
         public String getUserInfoUrl() {
             return userInfoUrl;
         }
@@ -107,6 +119,14 @@ public class AuthProperties {
 
         public void setLogoutUrl(String logoutUrl) {
             this.logoutUrl = logoutUrl;
+        }
+
+        public String getRevocationUrl() {
+            return revocationUrl;
+        }
+
+        public void setRevocationUrl(String revocationUrl) {
+            this.revocationUrl = revocationUrl;
         }
 
         public String getUsersUrl() {
@@ -155,6 +175,22 @@ public class AuthProperties {
 
         public void setAdminClientSecret(String adminClientSecret) {
             this.adminClientSecret = adminClientSecret;
+        }
+
+        public String getDefaultRedirectUri() {
+            return defaultRedirectUri;
+        }
+
+        public void setDefaultRedirectUri(String defaultRedirectUri) {
+            this.defaultRedirectUri = defaultRedirectUri;
+        }
+
+        public String getDefaultScope() {
+            return defaultScope;
+        }
+
+        public void setDefaultScope(String defaultScope) {
+            this.defaultScope = defaultScope;
         }
 
         public int getTimeoutMs() {
