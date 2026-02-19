@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: authservice
+  jackson:
+    serialization:
+      indent-output: true
+
+logging:
+  level:
+    root: INFO
+    "[com.cloudxplorer.authservice]": INFO
+    "[org.springframework.web]": INFO
+
+auth:
+  db:
+    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/authdb}
+    username: ${AUTH_DB_USERNAME:authservice}
+    password: ${AUTH_DB_PASSWORD:AuthService@123}
+    health-table: ${AUTH_DB_HEALTH_TABLE:public.flightapp}
+    user-table: ${AUTH_DB_USER_TABLE:public.flightapp}
+  rhbk:
+    health-url: ${AUTH_RHBK_HEALTH_URL:http://localhost:8090/realms/authservice/.well-known/openid-configuration}
+    token-url: ${AUTH_RHBK_TOKEN_URL:http://localhost:8090/realms/authservice/protocol/openid-connect/token}
+    user-info-url: ${AUTH_RHBK_USER_INFO_URL:http://localhost:8090/realms/authservice/protocol/openid-connect/userinfo}
+    users-url: ${AUTH_RHBK_USERS_URL:http://localhost:8090/admin/realms/authservice/users}
+    admin-token-url: ${AUTH_RHBK_ADMIN_TOKEN_URL:http://localhost:8090/realms/authservice/protocol/openid-connect/token}
+    client-id: ${AUTH_RHBK_CLIENT_ID:authservice-client}
+    client-secret: ${AUTH_RHBK_CLIENT_SECRET:jXvZoiPpvazLf8VUl2qxbZHjBj66FSVN}
+    admin-client-id: ${AUTH_RHBK_ADMIN_CLIENT_ID:authservice-admin}
+    admin-client-secret: ${AUTH_RHBK_ADMIN_CLIENT_SECRET:394YvP2YpNpt3ZUdfx5ZtWGeIGTK892V}
+    timeout-ms: ${AUTH_RHBK_TIMEOUT_MS:3000}

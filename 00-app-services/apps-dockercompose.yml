@@ -1,0 +1,39 @@
+services:
+
+# ------------- Auth service -------------
+
+  auth-service:
+    build: 
+      context: ../authservice
+      dockerfile: ../authservice/Dockerfile
+    container_name: auth-service
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - flight-booking-network
+
+# ------------- Booking service -------------
+
+  booking-service:
+    build: 
+      context: ../bookingservice
+      dockerfile: ../bookingservice/src/main/docker/Dockerfile.jvm
+    container_name: flightservice-booking
+    ports:
+      - "8081:8081"
+    restart: always
+    networks:
+      - flight-booking-network
+
+# ------------- Inventory service -------------
+
+# ------------- Search service -------------
+
+
+# ================= Network ========================
+
+networks:
+  flight-booking-network:
+    name: flight-booking-network
+    driver: bridge
