@@ -11,6 +11,7 @@ import com.cloudxplorer.authservice.model.ProfileUpdateRequest;
 import com.cloudxplorer.authservice.model.RegisterResponse;
 import com.cloudxplorer.authservice.model.User;
 import com.cloudxplorer.authservice.model.UserProfileResponse;
+import com.cloudxplorer.authservice.model.LogoutRequest;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -18,6 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -34,8 +37,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -45,7 +46,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -110,7 +113,6 @@ public class AuthController {
             return error(HttpStatus.BAD_REQUEST, httpRequest, correlationId,
                     "INVALID_REQUEST", "phone must contain 10 to 15 digits");
         }
-        String passwordHash = hashPassword(request.getPassword());
         String keycloakUserId;
 
         try (Connection conn = openConnection()) {
@@ -151,14 +153,13 @@ public class AuthController {
 
         String userId = keycloakUserId;
         try (Connection conn = openConnection()) {
-            String sql = "INSERT INTO " + userTable() + " (user_id, name, username, email, password_hash, phone) VALUES (?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO " + userTable() + " (user_id, name, username, email, phone) VALUES (?, ?, ?, ?, ?)";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, userId);
                 stmt.setString(2, request.getName());
                 stmt.setString(3, username);
                 stmt.setString(4, email);
-                stmt.setString(5, passwordHash);
-                stmt.setString(6, phone);
+                stmt.setString(5, phone);
                 stmt.executeUpdate();
             }
         } catch (SQLException ex) {
@@ -217,6 +218,7 @@ public class AuthController {
             String accessToken = extractStringField(body, "access_token");
             String tokenType = extractStringField(body, "token_type");
             int expiresIn = extractIntField(body, "expires_in", 3600);
+            String refreshToken = extractStringField(body, "refresh_token");
 
             if (isBlank(accessToken)) {
                 log.warn("Login response missing access token username={} correlationId={}",
@@ -225,8 +227,10 @@ public class AuthController {
                         "INVALID_CREDENTIALS", "invalid credentials");
             }
 
-            KeycloakUser user = fetchUserFromToken(accessToken);
-            String userId = user != null && !isBlank(user.subject()) ? user.subject() : "unknown";
+            String userId = extractJwtClaim(accessToken, "sub");
+            if (isBlank(userId)) {
+                userId = "unknown";
+            }
             Set<String> roles = extractRolesFromToken(accessToken);
             if (!hasAnyRole(roles, SUPPORTED_USER_ROLES)) {
                 log.warn("Login denied due to missing supported roles username={} roles={} correlationId={}",
@@ -236,7 +240,7 @@ public class AuthController {
             }
             String responseTokenType = isBlank(tokenType) ? TOKEN_TYPE_BEARER : tokenType;
             log.info("Login successful username={} userId={} roles={} correlationId={}", request.getUsername(), userId, roles, correlationId);
-            return ResponseEntity.ok(new AuthResponse(accessToken, responseTokenType, expiresIn, userId));
+            return ResponseEntity.ok(new AuthResponse(accessToken, responseTokenType, expiresIn, userId, refreshToken));
         } catch (Exception ex) {
             log.error("Login failed due to keycloak connectivity username={} correlationId={} message={}",
                     request.getUsername(), correlationId, ex.getMessage());
@@ -247,17 +251,12 @@ public class AuthController {
 
     @GetMapping("/profile")
     public ResponseEntity<?> profile(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "x-correlation-id", required = false) String correlationId,
             HttpServletRequest httpRequest) {
         log.info("Profile request received path={} correlationId={}", httpRequest.getRequestURI(), correlationId);
         KeycloakPrincipal principal;
-        try {
-            principal = resolvePrincipal(authorization);
-        } catch (Exception ex) {
-            return error(HttpStatus.SERVICE_UNAVAILABLE, httpRequest, correlationId,
-                    "KEYCLOAK_UNAVAILABLE", "failed to connect to keycloak");
-        }
+        principal = resolvePrincipal(jwt);
         if (principal == null || isBlank(principal.email())) {
             log.warn("Profile request unauthorized correlationId={}", correlationId);
             return error(HttpStatus.UNAUTHORIZED, httpRequest, correlationId,
@@ -290,18 +289,13 @@ public class AuthController {
 
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "x-correlation-id", required = false) String correlationId,
             @RequestBody ProfileUpdateRequest request,
             HttpServletRequest httpRequest) {
         log.info("Profile update request received path={} correlationId={}", httpRequest.getRequestURI(), correlationId);
         KeycloakPrincipal principal;
-        try {
-            principal = resolvePrincipal(authorization);
-        } catch (Exception ex) {
-            return error(HttpStatus.SERVICE_UNAVAILABLE, httpRequest, correlationId,
-                    "KEYCLOAK_UNAVAILABLE", "failed to connect to keycloak");
-        }
+        principal = resolvePrincipal(jwt);
         if (principal == null || isBlank(principal.email())) {
             log.warn("Profile update unauthorized correlationId={}", correlationId);
             return error(HttpStatus.UNAUTHORIZED, httpRequest, correlationId,
@@ -341,33 +335,86 @@ public class AuthController {
         return ResponseEntity.ok(new MessageResponse("profile updated"));
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<?> logout(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+    @DeleteMapping("/profile")
+    public ResponseEntity<?> deleteProfile(
+            @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "x-correlation-id", required = false) String correlationId,
             HttpServletRequest httpRequest) {
-        log.info("Logout request received path={} correlationId={}", httpRequest.getRequestURI(), correlationId);
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
-            return error(HttpStatus.BAD_REQUEST, httpRequest, correlationId,
-                    "AUTH_HEADER_MISSING", "missing bearer token");
+        log.info("Profile delete request received path={} correlationId={}", httpRequest.getRequestURI(), correlationId);
+        KeycloakPrincipal principal;
+        principal = resolvePrincipal(jwt);
+        if (principal == null || isBlank(principal.email())) {
+            log.warn("Profile delete unauthorized correlationId={}", correlationId);
+            return error(HttpStatus.UNAUTHORIZED, httpRequest, correlationId,
+                    "AUTH_TOKEN_INVALID", "invalid or missing token");
         }
-        log.info("Logout successful correlationId={}", correlationId);
-        return ResponseEntity.ok(new MessageResponse("logged out"));
+        if (!hasRole(principal, "customer")) {
+            return error(HttpStatus.FORBIDDEN, httpRequest, correlationId,
+                    "ACCESS_DENIED", "customer role is required");
+        }
+
+        try (Connection conn = openConnection()) {
+            UserRecord existing = findUserByEmail(conn, principal.email().toLowerCase(Locale.ROOT));
+            if (existing == null) {
+                log.warn("Profile delete user not found email={} correlationId={}", principal.email(), correlationId);
+                return error(HttpStatus.NOT_FOUND, httpRequest, correlationId,
+                        "USER_NOT_FOUND", "user profile not found");
+            }
+            deleteKeycloakUser(existing.userId(), correlationId);
+            try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM " + userTable() + " WHERE user_id = ?")) {
+                stmt.setString(1, existing.userId());
+                stmt.executeUpdate();
+            }
+        } catch (SQLException ex) {
+            log.error("Profile delete DB error email={} correlationId={} message={}",
+                    principal.email(), correlationId, ex.getMessage());
+            return error(HttpStatus.INTERNAL_SERVER_ERROR, httpRequest, correlationId,
+                    "DB_ERROR", "failed to delete profile");
+        } catch (Exception ex) {
+            log.error("Profile delete keycloak error email={} correlationId={} message={}",
+                    principal.email(), correlationId, ex.getMessage());
+            return error(HttpStatus.SERVICE_UNAVAILABLE, httpRequest, correlationId,
+                    "KEYCLOAK_UNAVAILABLE", "failed to delete user in keycloak");
+        }
+
+        log.info("Profile delete successful email={} correlationId={}", principal.email(), correlationId);
+        return ResponseEntity.ok(new MessageResponse("profile deleted"));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "x-correlation-id", required = false) String correlationId,
+            @RequestBody(required = false) LogoutRequest request,
+            HttpServletRequest httpRequest) {
+        log.info("Logout request received path={} correlationId={}", httpRequest.getRequestURI(), correlationId);
+        if (jwt == null) {
+            return error(HttpStatus.UNAUTHORIZED, httpRequest, correlationId,
+                    "AUTH_TOKEN_INVALID", "invalid or missing token");
+        }
+        if (request == null || isBlank(request.getRefreshToken())) {
+            return error(HttpStatus.BAD_REQUEST, httpRequest, correlationId,
+                    "INVALID_REQUEST", "refresh_token is required");
+        }
+        try {
+            revokeRefreshToken(request.getRefreshToken());
+            log.info("Logout successful correlationId={}", correlationId);
+            return ResponseEntity.ok(new MessageResponse("logged out"));
+        } catch (Exception ex) {
+            log.error("Logout failed keycloak error correlationId={} message={}", correlationId, ex.getMessage());
+            return error(HttpStatus.SERVICE_UNAVAILABLE, httpRequest, correlationId,
+                    "KEYCLOAK_UNAVAILABLE", "failed to revoke refresh token");
+        }
     }
 
     @GetMapping("/admin/users")
     public ResponseEntity<?> adminGetUserByEmail(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "x-correlation-id", required = false) String correlationId,
             @RequestParam("email") String email,
             HttpServletRequest httpRequest) {
         KeycloakPrincipal principal;
-        try {
-            principal = resolvePrincipal(authorization);
-        } catch (Exception ex) {
-            return error(HttpStatus.SERVICE_UNAVAILABLE, httpRequest, correlationId,
-                    "KEYCLOAK_UNAVAILABLE", "failed to connect to keycloak");
-        }
+        principal = resolvePrincipal(jwt);
         if (principal == null) {
             return error(HttpStatus.UNAUTHORIZED, httpRequest, correlationId,
                     "AUTH_TOKEN_INVALID", "invalid or missing token");
@@ -396,17 +443,12 @@ public class AuthController {
 
     @PostMapping("/admin/users")
     public ResponseEntity<?> adminCreateUser(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "x-correlation-id", required = false) String correlationId,
             @RequestBody AdminUserRequest request,
             HttpServletRequest httpRequest) {
         KeycloakPrincipal principal;
-        try {
-            principal = resolvePrincipal(authorization);
-        } catch (Exception ex) {
-            return error(HttpStatus.SERVICE_UNAVAILABLE, httpRequest, correlationId,
-                    "KEYCLOAK_UNAVAILABLE", "failed to connect to keycloak");
-        }
+        principal = resolvePrincipal(jwt);
         if (principal == null) {
             return error(HttpStatus.UNAUTHORIZED, httpRequest, correlationId,
                     "AUTH_TOKEN_INVALID", "invalid or missing token");
@@ -453,7 +495,6 @@ public class AuthController {
             return error(HttpStatus.BAD_REQUEST, httpRequest, correlationId,
                     "INVALID_REQUEST", "phone must contain 10 to 15 digits");
         }
-        String passwordHash = hashPassword(request.getPassword());
         String keycloakUserId;
 
         try (Connection conn = openConnection()) {
@@ -496,14 +537,13 @@ public class AuthController {
         }
 
         try (Connection conn = openConnection()) {
-            String sql = "INSERT INTO " + userTable() + " (user_id, name, username, email, password_hash, phone) VALUES (?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO " + userTable() + " (user_id, name, username, email, phone) VALUES (?, ?, ?, ?, ?)";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, keycloakUserId);
                 stmt.setString(2, request.getName());
                 stmt.setString(3, username);
                 stmt.setString(4, email);
-                stmt.setString(5, passwordHash);
-                stmt.setString(6, phone);
+                stmt.setString(5, phone);
                 stmt.executeUpdate();
             }
         } catch (SQLException ex) {
@@ -519,18 +559,13 @@ public class AuthController {
 
     @PutMapping("/admin/users")
     public ResponseEntity<?> adminUpdateUser(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "x-correlation-id", required = false) String correlationId,
             @RequestParam("email") String email,
             @RequestBody AdminUserUpdateRequest request,
             HttpServletRequest httpRequest) {
         KeycloakPrincipal principal;
-        try {
-            principal = resolvePrincipal(authorization);
-        } catch (Exception ex) {
-            return error(HttpStatus.SERVICE_UNAVAILABLE, httpRequest, correlationId,
-                    "KEYCLOAK_UNAVAILABLE", "failed to connect to keycloak");
-        }
+        principal = resolvePrincipal(jwt);
         if (principal == null) {
             return error(HttpStatus.UNAUTHORIZED, httpRequest, correlationId,
                     "AUTH_TOKEN_INVALID", "invalid or missing token");
@@ -590,17 +625,12 @@ public class AuthController {
 
     @DeleteMapping("/admin/users")
     public ResponseEntity<?> adminDeleteUser(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "x-correlation-id", required = false) String correlationId,
             @RequestParam("email") String email,
             HttpServletRequest httpRequest) {
         KeycloakPrincipal principal;
-        try {
-            principal = resolvePrincipal(authorization);
-        } catch (Exception ex) {
-            return error(HttpStatus.SERVICE_UNAVAILABLE, httpRequest, correlationId,
-                    "KEYCLOAK_UNAVAILABLE", "failed to connect to keycloak");
-        }
+        principal = resolvePrincipal(jwt);
         if (principal == null) {
             return error(HttpStatus.UNAUTHORIZED, httpRequest, correlationId,
                     "AUTH_TOKEN_INVALID", "invalid or missing token");
@@ -638,18 +668,13 @@ public class AuthController {
 
     @PutMapping("/support/users")
     public ResponseEntity<?> supportUpdateUser(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "x-correlation-id", required = false) String correlationId,
             @RequestParam("email") String email,
             @RequestBody ProfileUpdateRequest request,
             HttpServletRequest httpRequest) {
         KeycloakPrincipal principal;
-        try {
-            principal = resolvePrincipal(authorization);
-        } catch (Exception ex) {
-            return error(HttpStatus.SERVICE_UNAVAILABLE, httpRequest, correlationId,
-                    "KEYCLOAK_UNAVAILABLE", "failed to connect to keycloak");
-        }
+        principal = resolvePrincipal(jwt);
         if (principal == null) {
             return error(HttpStatus.UNAUTHORIZED, httpRequest, correlationId,
                     "AUTH_TOKEN_INVALID", "invalid or missing token");
@@ -695,17 +720,12 @@ public class AuthController {
 
     @GetMapping("/airline/users")
     public ResponseEntity<?> airlineViewUser(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "x-correlation-id", required = false) String correlationId,
             @RequestParam("email") String email,
             HttpServletRequest httpRequest) {
         KeycloakPrincipal principal;
-        try {
-            principal = resolvePrincipal(authorization);
-        } catch (Exception ex) {
-            return error(HttpStatus.SERVICE_UNAVAILABLE, httpRequest, correlationId,
-                    "KEYCLOAK_UNAVAILABLE", "failed to connect to keycloak");
-        }
+        principal = resolvePrincipal(jwt);
         if (principal == null) {
             return error(HttpStatus.UNAUTHORIZED, httpRequest, correlationId,
                     "AUTH_TOKEN_INVALID", "invalid or missing token");
@@ -731,42 +751,12 @@ public class AuthController {
         }
     }
 
-    private KeycloakPrincipal resolvePrincipal(String authorization) throws Exception {
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
+    private KeycloakPrincipal resolvePrincipal(Jwt jwt) {
+        if (jwt == null) {
             return null;
         }
-        String token = authorization.substring("Bearer ".length()).trim();
-        if (isBlank(token)) {
-            return null;
-        }
-        KeycloakUser user = fetchUserFromToken(token);
-        if (user == null) {
-            return null;
-        }
-        return new KeycloakPrincipal(user.subject(), user.email(), extractRolesFromToken(token));
-    }
-
-    private KeycloakUser fetchUserFromToken(String accessToken) throws Exception {
-        HttpRequest userInfoRequest = HttpRequest.newBuilder()
-                .uri(URI.create(authProperties.getRhbk().getUserInfoUrl()))
-                .timeout(Duration.ofMillis(authProperties.getRhbk().getTimeoutMs()))
-                .header("Authorization", "Bearer " + accessToken)
-                .GET()
-                .build();
-
-        HttpResponse<String> userInfoResponse = HTTP_CLIENT.send(userInfoRequest, HttpResponse.BodyHandlers.ofString());
-        if (userInfoResponse.statusCode() < 200 || userInfoResponse.statusCode() >= 300) {
-            return null;
-        }
-
-        String body = userInfoResponse.body();
-        String subject = extractStringField(body, "sub");
-        String email = extractStringField(body, "email");
-        String preferredUsername = extractStringField(body, "preferred_username");
-        if (isBlank(email) && !isBlank(preferredUsername) && preferredUsername.contains("@")) {
-            email = preferredUsername;
-        }
-        return new KeycloakUser(subject, email);
+        String email = extractEmailFromJwt(jwt);
+        return new KeycloakPrincipal(jwt.getSubject(), email, extractRolesFromJwt(jwt));
     }
 
     private String createKeycloakUser(User request, String username, String email, String role, String correlationId) throws Exception {
@@ -830,6 +820,26 @@ public class AuthController {
                 deleteResponse.statusCode(), keycloakUserId, correlationId);
     }
 
+    private void revokeRefreshToken(String refreshToken) throws Exception {
+        String form = "client_id=" + urlEncode(authProperties.getRhbk().getClientId())
+                + "&refresh_token=" + urlEncode(refreshToken);
+        if (!isBlank(authProperties.getRhbk().getClientSecret())) {
+            form = form + "&client_secret=" + urlEncode(authProperties.getRhbk().getClientSecret());
+        }
+
+        HttpRequest logoutRequest = HttpRequest.newBuilder()
+                .uri(URI.create(authProperties.getRhbk().getLogoutUrl()))
+                .timeout(Duration.ofMillis(authProperties.getRhbk().getTimeoutMs()))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString(form))
+                .build();
+
+        HttpResponse<String> response = HTTP_CLIENT.send(logoutRequest, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IllegalStateException("keycloak logout failed status=" + response.statusCode());
+        }
+    }
+
     private String fetchAdminAccessToken() throws Exception {
         String adminClientId = isBlank(authProperties.getRhbk().getAdminClientId())
                 ? authProperties.getRhbk().getClientId()
@@ -872,7 +882,7 @@ public class AuthController {
     }
 
     private UserRecord findUserByEmail(Connection conn, String email) throws SQLException {
-        String sql = "SELECT user_id, name, email, password_hash, phone FROM " + userTable() + " WHERE email = ?";
+        String sql = "SELECT user_id, name, email, phone FROM " + userTable() + " WHERE email = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, email);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -883,14 +893,13 @@ public class AuthController {
                         rs.getString("user_id"),
                         rs.getString("name"),
                         rs.getString("email"),
-                        rs.getString("password_hash"),
                         rs.getString("phone"));
             }
         }
     }
 
     private UserRecord findUserByPhone(Connection conn, String phone) throws SQLException {
-        String sql = "SELECT user_id, name, email, password_hash, phone FROM " + userTable() + " WHERE phone = ?";
+        String sql = "SELECT user_id, name, email, phone FROM " + userTable() + " WHERE phone = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, phone);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -901,19 +910,8 @@ public class AuthController {
                         rs.getString("user_id"),
                         rs.getString("name"),
                         rs.getString("email"),
-                        rs.getString("password_hash"),
                         rs.getString("phone"));
             }
-        }
-    }
-
-    private String hashPassword(String rawPassword) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashed = digest.digest(rawPassword.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hashed);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 not available", ex);
         }
     }
 
@@ -1069,6 +1067,71 @@ public class AuthController {
         return roles;
     }
 
+    private Set<String> extractRolesFromJwt(Jwt jwt) {
+        Set<String> roles = new HashSet<>();
+        if (jwt == null) {
+            return roles;
+        }
+        Object realmAccessObj = jwt.getClaim("realm_access");
+        if (realmAccessObj instanceof Map<?, ?> realmAccess) {
+            Object rolesObj = realmAccess.get("roles");
+            if (rolesObj instanceof List<?> roleList) {
+                for (Object role : roleList) {
+                    if (role != null) {
+                        roles.add(role.toString());
+                    }
+                }
+            }
+        }
+
+        Object resourceAccessObj = jwt.getClaim("resource_access");
+        if (resourceAccessObj instanceof Map<?, ?> resourceAccess) {
+            Object clientAccessObj = resourceAccess.get(authProperties.getRhbk().getClientId());
+            if (clientAccessObj instanceof Map<?, ?> clientAccess) {
+                Object rolesObj = clientAccess.get("roles");
+                if (rolesObj instanceof List<?> roleList) {
+                    for (Object role : roleList) {
+                        if (role != null) {
+                            roles.add(role.toString());
+                        }
+                    }
+                }
+            }
+        }
+        return roles;
+    }
+
+    private String extractEmailFromJwt(Jwt jwt) {
+        if (jwt == null) {
+            return null;
+        }
+        String email = jwt.getClaimAsString("email");
+        if (!isBlank(email)) {
+            return email;
+        }
+        String preferredUsername = jwt.getClaimAsString("preferred_username");
+        if (!isBlank(preferredUsername) && preferredUsername.contains("@")) {
+            return preferredUsername;
+        }
+        return null;
+    }
+
+    private String extractJwtClaim(String token, String field) {
+        if (isBlank(token) || isBlank(field)) {
+            return null;
+        }
+        String[] tokenParts = token.split("\\.");
+        if (tokenParts.length < 2) {
+            return null;
+        }
+        try {
+            String payload = new String(Base64.getUrlDecoder().decode(tokenParts[1]), StandardCharsets.UTF_8);
+            return extractStringField(payload, field);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
     private KeycloakTokenError parseKeycloakTokenError(String jsonBody) {
         String code = extractStringField(jsonBody, "error");
         String description = extractStringField(jsonBody, "error_description");
@@ -1221,10 +1284,7 @@ public class AuthController {
         return ResponseEntity.status(status).body(body);
     }
 
-    private record UserRecord(String userId, String name, String email, String passwordHash, String phone) {
-    }
-
-    private record KeycloakUser(String subject, String email) {
+    private record UserRecord(String userId, String name, String email, String phone) {
     }
 
     private record KeycloakPrincipal(String subject, String email, Set<String> roles) {

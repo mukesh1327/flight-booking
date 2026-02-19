@@ -16,7 +16,8 @@
 | ------ | -------- | ----------- | ---- |
 | GET | /auth/profile | Read profile by token email | JWT (`customer`) |
 | PUT | /auth/profile | Update profile | JWT (`customer`) |
-| POST | /auth/logout | Stateless logout response | JWT |
+| DELETE | /auth/profile | Delete own profile | JWT (`customer`) |
+| POST | /auth/logout | Revoke refresh token in Keycloak | JWT |
 
 ## Admin endpoints
 
@@ -41,7 +42,8 @@
 
 ## Current implementation notes
 
-- Keycloak is used for authentication (`/auth/login`) and bearer-token validation (`/auth/profile`, `/auth/profile` PUT).
+- Keycloak is used for authentication (`/auth/login`).
+- Bearer-token validation uses Spring Security JWT Resource Server (no per-request UserInfo calls).
 - Role checks are enforced from JWT roles:
   - `customer`: `/auth/profile`, `/auth/profile` PUT
   - `admin`: full user management (`/auth/admin/users` GET/POST/PUT/DELETE)
@@ -49,7 +51,7 @@
   - `airline_ops`: read-only operations endpoint (`/auth/airline/users`)
 - Local DB (`public.flightapp` by default) stores domain profile fields (`name`, `email`, `phone`).
 - `/auth/register` creates `customer` in Keycloak first, then persists local DB profile.
-- `/auth/logout` currently does not revoke Keycloak token.
+- `/auth/logout` revokes the refresh token using Keycloak logout endpoint.
 - Current login flow uses password grant against Keycloak token endpoint.
 
 ## Status
@@ -80,7 +82,7 @@ Pending (before production hardening):
   - Create: `POST /auth/register`
   - Read: `GET /auth/profile`
   - Update: `PUT /auth/profile`
-  - Delete: Not allowed directly (admin only)
+  - Delete: `DELETE /auth/profile`
 
 - `admin`
   - Create: `POST /auth/admin/users`
@@ -103,6 +105,7 @@ Pending (before production hardening):
 - Input: correct `username` + `password`
 - Result: `200 OK`
 - Response: `accessToken`, `tokenType`, `expiresIn`, `userId`
+  - Response includes `refreshToken` for logout/revocation.
 
 2. Invalid credentials
 - Input: wrong password or unknown username
@@ -198,13 +201,16 @@ curl -i -X POST "$BASE_URL/auth/register" \
 Login:
 
 ```bash
-TOKEN=$(curl -s -X POST "$BASE_URL/auth/login" \
+LOGIN_RESPONSE=$(curl -s -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -H "x-correlation-id: $CORRELATION_ID" \
-  -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}" \
-  | tr -d '\n' | sed -n 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+  -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}")
+
+TOKEN=$(echo "$LOGIN_RESPONSE" | tr -d '\n' | sed -n 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+REFRESH_TOKEN=$(echo "$LOGIN_RESPONSE" | tr -d '\n' | sed -n 's/.*"refreshToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 
 echo "$TOKEN"
+echo "$REFRESH_TOKEN"
 ```
 
 Negative login (wrong password):
@@ -242,7 +248,9 @@ Logout:
 ```bash
 curl -i -X POST "$BASE_URL/auth/logout" \
   -H "Authorization: Bearer $TOKEN" \
-  -H "x-correlation-id: $CORRELATION_ID"
+  -H "Content-Type: application/json" \
+  -H "x-correlation-id: $CORRELATION_ID" \
+  -d "{\"refreshToken\":\"$REFRESH_TOKEN\"}"
 ```
 
 ```bash

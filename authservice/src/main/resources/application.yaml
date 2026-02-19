@@ -4,6 +4,11 @@ spring:
   jackson:
     serialization:
       indent-output: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH_RHBK_ISSUER_URI:http://localhost:8090/realms/authservice}
 
 logging:
   level:
@@ -22,6 +27,7 @@ auth:
     health-url: ${AUTH_RHBK_HEALTH_URL:http://localhost:8090/realms/authservice/.well-known/openid-configuration}
     token-url: ${AUTH_RHBK_TOKEN_URL:http://localhost:8090/realms/authservice/protocol/openid-connect/token}
     user-info-url: ${AUTH_RHBK_USER_INFO_URL:http://localhost:8090/realms/authservice/protocol/openid-connect/userinfo}
+    logout-url: ${AUTH_RHBK_LOGOUT_URL:http://localhost:8090/realms/authservice/protocol/openid-connect/logout}
     users-url: ${AUTH_RHBK_USERS_URL:http://localhost:8090/admin/realms/authservice/users}
     admin-token-url: ${AUTH_RHBK_ADMIN_TOKEN_URL:http://localhost:8090/realms/authservice/protocol/openid-connect/token}
     client-id: ${AUTH_RHBK_CLIENT_ID:authservice-client}

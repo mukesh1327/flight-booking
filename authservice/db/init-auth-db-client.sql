@@ -30,11 +30,14 @@ CREATE TABLE IF NOT EXISTS public.flightapp (
     name VARCHAR(120) NOT NULL,
     username VARCHAR(64) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
     phone VARCHAR(32) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Optional one-time cleanup for legacy schema (drops locally stored password hashes).
+-- Review and back up before running in production.
+ALTER TABLE public.flightapp DROP COLUMN IF EXISTS password_hash;
 
 CREATE INDEX IF NOT EXISTS idx_flightapp_email ON public.flightapp (email);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_flightapp_username_ci ON public.flightapp (LOWER(username));

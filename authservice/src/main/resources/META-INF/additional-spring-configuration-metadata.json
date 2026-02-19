@@ -38,7 +38,12 @@
     {
       "name": "auth.rhbk.user-info-url",
       "type": "java.lang.String",
-      "description": "Keycloak userinfo endpoint used to validate bearer tokens."
+      "description": "Keycloak userinfo endpoint (unused for auth; retained for optional lookups)."
+    },
+    {
+      "name": "auth.rhbk.logout-url",
+      "type": "java.lang.String",
+      "description": "Keycloak logout endpoint used to revoke refresh tokens."
     },
     {
       "name": "auth.rhbk.users-url",

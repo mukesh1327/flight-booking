@@ -68,6 +68,7 @@ public class AuthProperties {
         private String healthUrl = "http://localhost:8090/realms/authservice/.well-known/openid-configuration";
         private String tokenUrl = "http://localhost:8090/realms/authservice/protocol/openid-connect/token";
         private String userInfoUrl = "http://localhost:8090/realms/authservice/protocol/openid-connect/userinfo";
+        private String logoutUrl = "http://localhost:8090/realms/authservice/protocol/openid-connect/logout";
         private String usersUrl = "http://localhost:8090/admin/realms/authservice/users";
         private String adminTokenUrl = "http://localhost:8090/realms/authservice/protocol/openid-connect/token";
         private String clientId = "authservice-client";
@@ -98,6 +99,14 @@ public class AuthProperties {
 
         public void setUserInfoUrl(String userInfoUrl) {
             this.userInfoUrl = userInfoUrl;
+        }
+
+        public String getLogoutUrl() {
+            return logoutUrl;
+        }
+
+        public void setLogoutUrl(String logoutUrl) {
+            this.logoutUrl = logoutUrl;
         }
 
         public String getUsersUrl() {
