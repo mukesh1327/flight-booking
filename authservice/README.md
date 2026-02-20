@@ -35,8 +35,9 @@ Configure these in Keycloak Admin Console for realm `authservice`:
 - `admin`
 
 RHBK UI note:
-- In newer Red Hat build of Keycloak UI, user role assignment appears under `Associated roles` (instead of `Role mapping`).
-- Path: `Users` -> select user -> `Associated roles` -> assign exactly one supported role.
+- User role assignment is under `Users` -> select user -> `Role mapping` (or `Role mappings` in some versions).
+- In some newer UI layouts, the same screen may be labeled `Associated roles`.
+- Assign exactly one supported role: `customer`, `support_agent`, `airline_ops`, or `admin`.
 
 3. Client: `authservice-client` (end-user OIDC)
 - Client ID: `authservice-client`
@@ -78,6 +79,7 @@ Dummy frontend for full role testing:
 - Files:
   - `tools/pkce-test/index.html` (complete role test console)
   - `tools/pkce-test/callback.html` (simple callback viewer)
+- Start server (Linux/macOS): `bash tools/pkce-test/start-server.sh`
 - Start server (Windows PowerShell): `powershell -ExecutionPolicy Bypass -File tools/pkce-test/start-server.ps1`
 - Open UI: `http://localhost:3000/index.html`
 - Configure Keycloak valid redirect URIs to include:

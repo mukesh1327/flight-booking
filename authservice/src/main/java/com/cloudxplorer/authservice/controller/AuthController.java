@@ -1533,4 +1533,3 @@ public class AuthController {
     private static class KeycloakConflictException extends RuntimeException {
     }
 }
-

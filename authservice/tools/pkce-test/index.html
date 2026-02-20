@@ -124,7 +124,30 @@
     </section>
 
     <section class="card">
-      <h2>2) Customer APIs</h2>
+      <h2>2) Register (Customer)</h2>
+      <label>Name
+        <input id="regName" value="Test Customer">
+      </label>
+      <label>Username
+        <input id="regUsername" value="">
+      </label>
+      <label>Email
+        <input id="regEmail" value="">
+      </label>
+      <label>Password
+        <input id="regPassword" value="Test@1234">
+      </label>
+      <label>Phone
+        <input id="regPhone" value="">
+      </label>
+      <div class="row">
+        <button id="registerCustomer">POST /auth/register</button>
+        <button id="fillRegister" class="alt">Generate Test User</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3) Customer APIs</h2>
       <div class="row">
         <button id="getProfile">GET /auth/profile</button>
         <button id="updateProfile" class="alt">PUT /auth/profile</button>
@@ -139,7 +162,7 @@
     </section>
 
     <section class="card">
-      <h2>3) Admin APIs</h2>
+      <h2>4) Admin APIs</h2>
       <label>User email
         <input id="adminEmail" value="sample.user@local.com">
       </label>
@@ -159,13 +182,24 @@
     </section>
 
     <section class="card">
-      <h2>4) Support/Airline APIs</h2>
+      <h2>5) Support/Airline APIs</h2>
       <label>Target customer email
         <input id="targetEmail" value="sample.user@local.com">
       </label>
       <div class="row">
         <button id="supportUpdate">PUT /auth/support/users</button>
         <button id="airlineView" class="alt">GET /auth/airline/users</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>6) Role smoke tests (with current token)</h2>
+      <p>Runs expected pass/fail checks for the logged-in role and writes results in response log.</p>
+      <div class="row">
+        <button id="smokeCustomer">Run customer checks</button>
+        <button id="smokeAdmin" class="alt">Run admin checks</button>
+        <button id="smokeSupport" class="alt">Run support checks</button>
+        <button id="smokeAirline" class="alt">Run airline checks</button>
       </div>
     </section>
 
@@ -239,6 +273,18 @@
         } catch (e) {
           return [];
         }
+      }
+
+      function primaryRole() {
+        var at = localStorage.getItem(keyPrefix + "accessToken") || "";
+        var roles = decodeJwtRoles(at);
+        var supported = ["customer", "admin", "support_agent", "airline_ops"];
+        for (var i = 0; i < supported.length; i++) {
+          if (roles.indexOf(supported[i]) >= 0) {
+            return supported[i];
+          }
+        }
+        return "";
       }
 
       function updateTokenSummary() {
@@ -350,6 +396,29 @@
         }, true);
       }
 
+      function fillRegisterDefaults() {
+        var ts = Date.now();
+        byId("regUsername").value = "customer_" + ts;
+        byId("regEmail").value = "customer." + ts + "@local.com";
+        byId("regPhone").value = randomDigits(10);
+        byId("targetEmail").value = byId("regEmail").value;
+      }
+
+      async function registerCustomer() {
+        var payload = {
+          name: byId("regName").value.trim(),
+          username: byId("regUsername").value.trim(),
+          email: byId("regEmail").value.trim(),
+          password: byId("regPassword").value.trim(),
+          phone: byId("regPhone").value.trim()
+        };
+        var out = await callApi("POST", "/auth/register", payload, false);
+        if (out.status >= 200 && out.status < 300) {
+          byId("adminEmail").value = payload.email;
+          byId("targetEmail").value = payload.email;
+        }
+      }
+
       async function adminUpdate() {
         var email = byId("adminEmail").value.trim();
         await callApi("PUT", "/auth/admin/users?email=" + encodeURIComponent(email), {
@@ -372,10 +441,40 @@
         await callApi("GET", "/auth/airline/users?email=" + encodeURIComponent(email), null, true);
       }
 
+      async function smokeCustomer() {
+        appendLog("Smoke test", "Starting customer smoke checks for role=" + (primaryRole() || "(none)"));
+        await callApi("GET", "/auth/profile", null, true);
+        await customerUpdate();
+        await callApi("GET", "/auth/admin/users?email=" + encodeURIComponent(byId("adminEmail").value.trim()), null, true);
+      }
+
+      async function smokeAdmin() {
+        appendLog("Smoke test", "Starting admin smoke checks for role=" + (primaryRole() || "(none)"));
+        await callApi("GET", "/auth/admin/users?email=" + encodeURIComponent(byId("adminEmail").value.trim()), null, true);
+        await adminCreate();
+        await callApi("GET", "/auth/profile", null, true);
+      }
+
+      async function smokeSupport() {
+        appendLog("Smoke test", "Starting support smoke checks for role=" + (primaryRole() || "(none)"));
+        await supportUpdate();
+        await airlineView();
+        await callApi("GET", "/auth/admin/users?email=" + encodeURIComponent(byId("adminEmail").value.trim()), null, true);
+      }
+
+      async function smokeAirline() {
+        appendLog("Smoke test", "Starting airline smoke checks for role=" + (primaryRole() || "(none)"));
+        await airlineView();
+        await supportUpdate();
+        await callApi("GET", "/auth/admin/users?email=" + encodeURIComponent(byId("adminEmail").value.trim()), null, true);
+      }
+
       byId("startLogin").addEventListener("click", startLogin);
       byId("exchangeCode").addEventListener("click", exchangeCode);
       byId("refreshToken").addEventListener("click", refreshToken);
       byId("logoutBtn").addEventListener("click", logout);
+      byId("registerCustomer").addEventListener("click", registerCustomer);
+      byId("fillRegister").addEventListener("click", fillRegisterDefaults);
 
       byId("getProfile").addEventListener("click", function () { callApi("GET", "/auth/profile", null, true); });
       byId("updateProfile").addEventListener("click", customerUpdate);
@@ -391,6 +490,10 @@
       });
       byId("supportUpdate").addEventListener("click", supportUpdate);
       byId("airlineView").addEventListener("click", airlineView);
+      byId("smokeCustomer").addEventListener("click", smokeCustomer);
+      byId("smokeAdmin").addEventListener("click", smokeAdmin);
+      byId("smokeSupport").addEventListener("click", smokeSupport);
+      byId("smokeAirline").addEventListener("click", smokeAirline);
 
       var q = new URLSearchParams(window.location.search);
       var code = q.get("code");
@@ -407,6 +510,7 @@
       if (savedRedirect) {
         byId("redirectUri").value = savedRedirect;
       }
+      fillRegisterDefaults();
       updateTokenSummary();
     })();
   </script>
