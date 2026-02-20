@@ -91,6 +91,30 @@ Dummy frontend for full role testing:
 
 ### Complete role flow using dummy frontend
 
+Real-time user login story (PKCE):
+- User opens `http://localhost:3000/index.html`.
+- User clicks `Start Login (PKCE)`.
+- Frontend calls `GET /auth/login/authorize` and gets:
+  - `authorizationUrl`
+  - `codeVerifier`
+  - `state`
+- Browser redirects to Keycloak login page.
+- User signs in on Keycloak UI.
+- Keycloak redirects back to frontend with `code` in URL.
+- Frontend reads `code`, then user clicks `Exchange Code`.
+- Frontend calls `POST /auth/login` with `code`, `codeVerifier`, `redirectUri`.
+- Backend exchanges code with Keycloak token endpoint and returns:
+  - `accessToken`, `refreshToken`, `expiresIn`.
+- Frontend uses `accessToken` for role APIs.
+- Later, user can:
+  - click `Refresh` -> `POST /auth/token/refresh`
+  - click `Logout` -> `POST /auth/logout`
+
+In-UI guided demo:
+- Set persona in `Story Guide (Real-time)` card (`customer`, `admin`, `support_agent`, `airline_ops`).
+- Click `Run Guided Checks`.
+- UI runs expected allowed and denied APIs for that role and logs all responses.
+
 1. Start dependencies:
 - Keycloak on `http://localhost:8090`
 - Authservice on `http://localhost:8080`

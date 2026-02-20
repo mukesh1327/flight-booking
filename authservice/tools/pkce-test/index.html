@@ -95,6 +95,7 @@
   <div class="grid">
     <section class="card">
       <h2>1) Config + PKCE Login</h2>
+      <p>Flow: Start Login -> Keycloak UI -> back with code -> Exchange Code -> test role APIs.</p>
       <label>Backend base URL
         <input id="baseUrl" value="http://localhost:8080">
       </label>
@@ -121,6 +122,23 @@
         <textarea id="tokenSummary" readonly></textarea>
       </label>
       <p><span id="loginStatus" class="pill">Not logged in</span></p>
+    </section>
+
+    <section class="card">
+      <h2>Story Guide (Real-time)</h2>
+      <label>Current test persona
+        <select id="persona">
+          <option value="customer">customer</option>
+          <option value="admin">admin</option>
+          <option value="support_agent">support_agent</option>
+          <option value="airline_ops">airline_ops</option>
+        </select>
+      </label>
+      <div class="row">
+        <button id="runPersonaGuide">Run Guided Checks</button>
+        <button id="clearLog" class="alt">Clear Log</button>
+      </div>
+      <p>Guided checks call expected allowed and denied APIs for the selected role.</p>
     </section>
 
     <section class="card">
@@ -469,6 +487,26 @@
         await callApi("GET", "/auth/admin/users?email=" + encodeURIComponent(byId("adminEmail").value.trim()), null, true);
       }
 
+      async function runPersonaGuide() {
+        var role = byId("persona").value;
+        appendLog("Guided story", "Selected persona=" + role + ", token role=" + (primaryRole() || "(none)"));
+        if (role === "customer") {
+          await smokeCustomer();
+          return;
+        }
+        if (role === "admin") {
+          await smokeAdmin();
+          return;
+        }
+        if (role === "support_agent") {
+          await smokeSupport();
+          return;
+        }
+        if (role === "airline_ops") {
+          await smokeAirline();
+        }
+      }
+
       byId("startLogin").addEventListener("click", startLogin);
       byId("exchangeCode").addEventListener("click", exchangeCode);
       byId("refreshToken").addEventListener("click", refreshToken);
@@ -494,6 +532,8 @@
       byId("smokeAdmin").addEventListener("click", smokeAdmin);
       byId("smokeSupport").addEventListener("click", smokeSupport);
       byId("smokeAirline").addEventListener("click", smokeAirline);
+      byId("runPersonaGuide").addEventListener("click", runPersonaGuide);
+      byId("clearLog").addEventListener("click", function () { logEl.textContent = ""; });
 
       var q = new URLSearchParams(window.location.search);
       var code = q.get("code");
