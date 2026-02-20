@@ -1,0 +1,25 @@
+:root {
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  line-height: 1.45;
+  font-weight: 400;
+  color: #181b24;
+  background: #f8f4e9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 255, 255, 0.72), transparent 35%),
+    radial-gradient(circle at 100% 100%, rgba(199, 224, 255, 0.45), transparent 38%),
+    linear-gradient(135deg, #f8f4e9 0%, #f5f8fd 100%);
+}
