@@ -22,9 +22,9 @@ services:
       - AUTH_RHBK_USERS_URL=http://keycloak:8080/admin/realms/authservice/users
       - AUTH_RHBK_ADMIN_TOKEN_URL=http://keycloak:8080/realms/authservice/protocol/openid-connect/token
       - AUTH_RHBK_CLIENT_ID=authservice-client
-      - AUTH_RHBK_CLIENT_SECRET=jXvZoiPpvazLf8VUl2qxbZHjBj66FSVN
+      - AUTH_RHBK_CLIENT_SECRET=ob4xrqpZmU1F7Y3oRr3EjRwiPkT5PHUI
       - AUTH_RHBK_ADMIN_CLIENT_ID=authservice-admin
-      - AUTH_RHBK_ADMIN_CLIENT_SECRET=394YvP2YpNpt3ZUdfx5ZtWGeIGTK892V
+      - AUTH_RHBK_ADMIN_CLIENT_SECRET=Xwc7r9FtBjBqYoNVWvzkbdFeilPCi5gA
       - AUTH_RHBK_TIMEOUT_MS=3000
     networks:
       - flight-booking-network
