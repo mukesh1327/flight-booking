@@ -10,37 +10,22 @@ services:
     restart: always
     ports:
       - "8080:8080"
-    environment:
-      - AUTH_DB_URL=jdbc:postgresql://flightservice_postgres:5432/authdb
-      - AUTH_DB_USERNAME=authservice
-      - AUTH_DB_PASSWORD=AuthService@123
-      - AUTH_DB_HEALTH_TABLE=public.flightapp
-      - AUTH_DB_USER_TABLE=public.flightapp
-      - AUTH_RHBK_HEALTH_URL=http://keycloak:8080/realms/authservice/.well-known/openid-configuration
-      - AUTH_RHBK_TOKEN_URL=http://keycloak:8080/realms/authservice/protocol/openid-connect/token
-      - AUTH_RHBK_USER_INFO_URL=http://keycloak:8080/realms/authservice/protocol/openid-connect/userinfo
-      - AUTH_RHBK_USERS_URL=http://keycloak:8080/admin/realms/authservice/users
-      - AUTH_RHBK_ADMIN_TOKEN_URL=http://keycloak:8080/realms/authservice/protocol/openid-connect/token
-      - AUTH_RHBK_CLIENT_ID=authservice-client
-      - AUTH_RHBK_CLIENT_SECRET=ob4xrqpZmU1F7Y3oRr3EjRwiPkT5PHUI
-      - AUTH_RHBK_ADMIN_CLIENT_ID=authservice-admin
-      - AUTH_RHBK_ADMIN_CLIENT_SECRET=Xwc7r9FtBjBqYoNVWvzkbdFeilPCi5gA
-      - AUTH_RHBK_TIMEOUT_MS=3000
+
     networks:
       - flight-booking-network
 
 # ------------- Booking service -------------
 
-  booking-service:
-    build: 
-      context: ../bookingservice
-      dockerfile: ../bookingservice/src/main/docker/Dockerfile.jvm
-    container_name: flightservice-booking
-    ports:
-      - "8081:8081"
-    restart: always
-    networks:
-      - flight-booking-network
+  # booking-service:
+  #   build: 
+  #     context: ../bookingservice
+  #     dockerfile: ../bookingservice/src/main/docker/Dockerfile.jvm
+  #   container_name: flightservice-booking
+  #   ports:
+  #     - "8081:8081"
+  #   restart: always
+  #   networks:
+  #     - flight-booking-network
 
 # ------------- Inventory service -------------
 
