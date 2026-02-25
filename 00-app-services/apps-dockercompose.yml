@@ -10,6 +10,24 @@ services:
     restart: always
     ports:
       - "8081:8081"
+    environment:
+      PORT: "8081"
+      APP_ENV: "dev"
+      AUTH_APP_BASE_URL: "http://localhost:8081"
+      KEYCLOAK_BASE_URL: "http://keycloak:8080"
+      KEYCLOAK_PUBLIC_REALM: "skyfly-public"
+      KEYCLOAK_CORP_REALM: "skyfly-corp"
+      KEYCLOAK_CLIENT_ID_PUBLIC: "skyfly-public-web"
+      KEYCLOAK_CLIENT_SECRET_PUBLIC: ""
+      KEYCLOAK_CLIENT_ID_CORP: "skyfly-corp-web"
+      KEYCLOAK_CLIENT_SECRET_CORP: ""
+      GOOGLE_IDP_ALIAS: "google"
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/authdb"
+      SPRING_DATASOURCE_USERNAME: "auth_user"
+      SPRING_DATASOURCE_PASSWORD: "auth_password"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
     networks:
       - flight-booking-network

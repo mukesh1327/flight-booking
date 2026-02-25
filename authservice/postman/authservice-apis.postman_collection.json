@@ -1,0 +1,369 @@
+﻿{
+  "info": {
+    "name": "Auth Service APIs",
+    "_postman_id": "8c5f3d74-6a97-4d9c-b0c7-9f1a52f3051f",
+    "description": "Collection for all implemented authservice APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/health"
+          }
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/health/ready"
+          }
+        },
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/health/live"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public Auth",
+      "item": [
+        {
+          "name": "Start Google Login",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/auth/public/google/start"
+          }
+        },
+        {
+          "name": "Google Callback",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device", "value": "postman" },
+              { "key": "X-Forwarded-For", "value": "127.0.0.1" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/public/google/callback?code={{code}}&state={{state}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "public", "google", "callback"],
+              "query": [
+                { "key": "code", "value": "{{code}}" },
+                { "key": "state", "value": "{{state}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Public Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{userId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\",\n  \"allSessions\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/public/logout"
+          }
+        },
+        {
+          "name": "Request Step-up OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"purpose\": \"SENSITIVE_ACTION\",\n  \"channel\": \"EMAIL\",\n  \"emailOrPhone\": \"customer@example.com\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/public/step-up/otp/request"
+          }
+        },
+        {
+          "name": "Verify Step-up OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challengeId\": \"{{challengeId}}\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/public/step-up/otp/verify"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Corp Auth",
+      "item": [
+        {
+          "name": "Corp Login Init",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff@airline.com\",\n  \"deviceInfo\": {\n    \"userAgent\": \"Postman\",\n    \"ip\": \"127.0.0.1\",\n    \"deviceId\": \"device-1\",\n    \"platform\": \"desktop\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/corp/login/init"
+          }
+        },
+        {
+          "name": "Corp Login Verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loginFlowId\": \"{{loginFlowId}}\",\n  \"factorType\": \"PASSWORD\",\n  \"assertion\": \"dummy-assertion\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/corp/login/verify"
+          }
+        },
+        {
+          "name": "Corp MFA Challenge",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loginFlowId\": \"{{loginFlowId}}\",\n  \"factorType\": \"PASSKEY\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/corp/mfa/challenge"
+          }
+        },
+        {
+          "name": "Corp MFA Verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device", "value": "postman" },
+              { "key": "X-Forwarded-For", "value": "127.0.0.1" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challengeId\": \"{{challengeId}}\",\n  \"otpOrAssertion\": \"dummy-otp-or-assertion\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/corp/mfa/verify"
+          }
+        },
+        {
+          "name": "Corp Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{userId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\",\n  \"allSessions\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/corp/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Session",
+      "item": [
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/token/refresh"
+          }
+        },
+        {
+          "name": "Get My Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/sessions/me"
+          }
+        },
+        {
+          "name": "Revoke Session",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "X-User-Id", "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/sessions/me/{{sessionId}}"
+          }
+        },
+        {
+          "name": "Shared Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{userId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\",\n  \"allSessions\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me"
+          }
+        },
+        {
+          "name": "Update Me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{userId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Sky\",\n  \"lastName\": \"Fly\",\n  \"mobile\": \"9999999999\",\n  \"preferences\": {\n    \"locale\": \"en-IN\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/users/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Corp Admin",
+      "item": [
+        {
+          "name": "Create Corp User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ops.user@airline.com\",\n  \"roleIds\": [\"OPS_AGENT\"],\n  \"department\": \"OPS\",\n  \"managerId\": \"mgr-001\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/corp/users"
+          }
+        },
+        {
+          "name": "Update Corp User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\",\n  \"department\": \"OPS\",\n  \"managerId\": \"mgr-002\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/corp/users/{{corpUserId}}"
+          }
+        },
+        {
+          "name": "Enable Corp User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/corp/users/{{corpUserId}}/enable"
+          }
+        },
+        {
+          "name": "Disable Corp User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/corp/users/{{corpUserId}}/disable"
+          }
+        },
+        {
+          "name": "Assign Role",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": \"CORP_ADMIN\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/corp/users/{{corpUserId}}/roles"
+          }
+        },
+        {
+          "name": "Remove Role",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/corp/users/{{corpUserId}}/roles/{{roleId}}"
+          }
+        },
+        {
+          "name": "Force MFA Reset",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/corp/users/{{corpUserId}}/force-mfa-reset"
+          }
+        },
+        {
+          "name": "Revoke All Sessions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/corp/users/{{corpUserId}}/session-revoke"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081" },
+    { "key": "userId", "value": "dev-user" },
+    { "key": "refreshToken", "value": "sample-refresh-token" },
+    { "key": "sessionId", "value": "sess_001" },
+    { "key": "corpUserId", "value": "corp-user-001" },
+    { "key": "roleId", "value": "OPS_AGENT" },
+    { "key": "loginFlowId", "value": "flow-001" },
+    { "key": "challengeId", "value": "challenge-001" },
+    { "key": "code", "value": "sample-code" },
+    { "key": "state", "value": "sample-state" }
+  ]
+}

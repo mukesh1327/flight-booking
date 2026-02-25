@@ -3,6 +3,9 @@ spring:
     name: authservice
   profiles:
     default: dev
+  jackson:
+    serialization:
+      indent_output: true
 
 server:
   port: ${PORT:8081}

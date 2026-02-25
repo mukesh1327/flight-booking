@@ -14,6 +14,9 @@ import com.cloudxplorer.authservice.domain.port.IdentityProviderPort;
 import com.cloudxplorer.authservice.domain.port.LoginFlowStatePort;
 import com.cloudxplorer.authservice.domain.port.SessionPort;
 import com.cloudxplorer.authservice.domain.port.UserProfilePort;
+import com.cloudxplorer.authservice.exception.BadRequestException;
+import com.cloudxplorer.authservice.exception.ConfigurationException;
+import com.cloudxplorer.authservice.exception.NotFoundException;
 import com.cloudxplorer.authservice.infrastructure.config.AuthServiceProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -79,7 +82,7 @@ public class AuthApplicationService {
     public AuthSessionResponse completePublicGoogleLogin(String code, String state, String device, String ip) {
         LoginFlowState flow = loginFlowStatePort.consume(state);
         if (flow == null || flow.expiresAt().isBefore(Instant.now())) {
-            throw new IllegalArgumentException("Invalid or expired state");
+            throw new BadRequestException("AUTH_INVALID_STATE", "Invalid or expired state");
         }
 
         IdentityAuthResult authResult = identityProviderPort.exchangePublicGoogleCode(code, flow.codeVerifier());
@@ -160,7 +163,7 @@ public class AuthApplicationService {
     public MeResponse getMe(String userId) {
         UserProfile profile = userProfilePort.getByUserId(userId);
         if (profile == null) {
-            throw new IllegalArgumentException("User not found");
+            throw new NotFoundException("USER_NOT_FOUND", "User not found");
         }
         return toMeResponse(profile);
     }
@@ -250,7 +253,7 @@ public class AuthApplicationService {
             byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
             return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("Unable to compute SHA-256", e);
+            throw new ConfigurationException("CRYPTO_ALGORITHM_MISSING", "Unable to compute SHA-256");
         }
     }
 

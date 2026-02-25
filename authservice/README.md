@@ -7,19 +7,94 @@ The root `README.md` describes the SkyFly Flight Booking Platform plan where `au
 - captures the end-to-end booking/cancellation/staff flows, the security baseline (mTLS, OAuth2, Vault secrets), and the phased roadmap we follow for MVP and beyond.
 This service-specific plan is an implementation contract that layers on those platform constraints with the Keycloak + Spring Boot execution detail.
 
+## Folder Structure (Tree Format)
+```text
+authservice/
+├─ db/
+│  └─ init-auth-db.sql
+├─ src/
+│  ├─ main/
+│  │  ├─ java/com/cloudxplorer/authservice/
+│  │  │  ├─ api/
+│  │  │  │  ├─ controller/
+│  │  │  │  └─ dto/
+│  │  │  │     ├─ common/
+│  │  │  │     ├─ corpadmin/
+│  │  │  │     ├─ corpauth/
+│  │  │  │     ├─ health/
+│  │  │  │     ├─ publicauth/
+│  │  │  │     ├─ session/
+│  │  │  │     └─ user/
+│  │  │  ├─ application/
+│  │  │  │  └─ service/
+│  │  │  ├─ domain/
+│  │  │  │  ├─ model/
+│  │  │  │  └─ port/
+│  │  │  ├─ exception/
+│  │  │  ├─ infrastructure/
+│  │  │  │  ├─ adapter/
+│  │  │  │  │  ├─ dev/
+│  │  │  │  │  ├─ prod/
+│  │  │  │  │  └─ shared/
+│  │  │  │  ├─ config/
+│  │  │  │  └─ health/
+│  │  │  └─ AuthserviceApplication.java
+│  │  └─ resources/
+│  │     └─ application.yaml
+│  └─ test/
+│     └─ java/com/cloudxplorer/authservice/
+├─ Dockerfile
+├─ Dockerfile.mvnbuild
+├─ pom.xml
+└─ README.md
+```
+
 ## Health Endpoints
 The service publishes lightweight health responses that gate the gateway-level `GET /api/v1/health` entry and support readiness/liveness checks for orchestration tooling:
 - `GET /api/v1/health`
 - `GET /api/v1/health/ready`
 - `GET /api/v1/health/live`
 
-Each endpoint currently returns the same `HealthResponse` payload (status, timestamp, environment, details) so operators can rely on a consistent structure regardless of the check they call.
-  * `status` is always `"UP"` today, matching the static response from `HealthController`.
-  * `timestamp` is the server instant when the response was built.
-  * `environment` mirrors the active authservice environment (`authservice.active-env`).
-  * `details` contains metadata pulled from runtime properties: `appBaseUrl`, `keycloakBaseUrl`, `publicClientId`, `corpClientId`, plus a `mode` value that simply echoes the specific check (`health`, `readiness`, `liveness`).
+Health contract:
+- `GET /api/v1/health` and `GET /api/v1/health/ready` are dependency-aware.
+  - They verify:
+    - Keycloak base URL reachability (`authservice.keycloak.base-url`).
+    - Database URL reachability (`spring.datasource.url` fallback `AUTH_DB_URL`).
+  - Response status rules:
+    - `UP` + HTTP `200` only when both checks are UP.
+    - `DOWN` + HTTP `503` when either dependency check fails.
+- `GET /api/v1/health/live` is process liveness and returns `UP` while service is running.
+
+Response format is always `HealthResponse(status, timestamp, environment, details)`:
+  * `status`: `UP` or `DOWN`.
+  * `timestamp`: server timestamp at response creation.
+  * `environment`: `authservice.active-env`.
+  * `details`: includes `keycloak.status`, `keycloak.reason`, `db.status`, `db.reason`, `db.target`, `mode`, and base metadata.
 
 Because pretty JSON is enabled globally in the application, each health payload is formatted for readability by default when queried via curl/postman; the pretty-printed output makes the map entries easy to scan in logs or dashboards.
+
+## Error Handling and Exceptions
+The service uses a structured exception model so error responses remain consistent:
+- Base exception:
+  - `ApiException` (holds `code`, `message`, HTTP status).
+- Typed exceptions:
+  - `BadRequestException`
+  - `NotFoundException`
+  - `ConfigurationException`
+  - `ExternalServiceException`
+
+Global exception mapping (`GlobalExceptionHandler`):
+- `ApiException` -> mapped using its own status and error code.
+- `MethodArgumentNotValidException` -> `400 VALIDATION_FAILED` with field-level error details.
+- `HttpMessageNotReadableException` -> `400 INVALID_JSON`.
+- `IllegalArgumentException` -> `400 AUTH_BAD_REQUEST` (fallback for non-migrated validations).
+- Any other unhandled exception -> `500 AUTH_INTERNAL_ERROR`.
+
+Error payload format:
+- `code`: machine-readable error key.
+- `message`: client-facing explanation.
+- `traceId`: unique request error id.
+- `details`: includes request path and optional validation metadata.
 
 ## 1. Objective
 Design and implement auth for two user groups:
@@ -97,6 +172,94 @@ Design and implement auth for two user groups:
   - Sync mode: import profile claims with controlled updates.
 - Configure custom claims mappers:
   - `user_id`, `realm`, `roles`, `mfa_level`.
+
+### 3.7 Keycloak Setup Runbook (Step by Step)
+Use this sequence in a fresh Keycloak instance:
+
+1. Create realms:
+- `skyfly-public`
+- `skyfly-corp`
+
+2. Create clients:
+- Public UI client in `skyfly-public`:
+  - Client ID: `skyfly-public-web`
+  - Access Type: public
+  - Standard Flow: ON
+  - PKCE: required (`S256`)
+  - Valid redirect URI: `<public-ui>/auth/google/callback`
+  - Web origins: exact public UI domains
+- Corp UI client in `skyfly-corp`:
+  - Client ID: `skyfly-corp-web`
+  - Access Type: confidential (recommended)
+  - Standard Flow: ON
+  - Valid redirect URI: `<corp-ui>/corp/auth/callback`
+- Service client (optional for admin automation):
+  - Client ID: `skyfly-auth-api`
+  - Service account: ON
+
+3. Configure Google IdP in `skyfly-public`:
+- Add Identity Provider: OpenID Connect v1.0
+- Alias: `google`
+- Set Google `client_id` and `client_secret`
+- Enable account linking policy as per business requirement
+- Map claims:
+  - email -> email
+  - given_name -> firstName
+  - family_name -> lastName
+  - sub -> federated identity key
+
+4. Configure workforce security in `skyfly-corp`:
+- Authentication flow:
+  - Browser / username step
+  - Mandatory MFA step (WebAuthn preferred, TOTP fallback)
+- Password/credential policy:
+  - Strong complexity + rotation for fallback creds
+- Brute force protection:
+  - failure detection ON
+  - temporary lockout ON
+
+5. Configure realm roles and groups:
+- Roles: `CORP_ADMIN`, `OPS_AGENT`, `SUPPORT_AGENT`, `FINANCE_AGENT`, `CUSTOMER`
+- Groups: `/ops`, `/support`, `/finance`, `/admin`
+- Bind group-role mappings.
+
+6. Configure tokens and sessions:
+- Access token TTL:
+  - Public: 10-15 min
+  - Corp: 5-10 min
+- Refresh token:
+  - Rotation ON
+  - Reuse detection ON
+- Session constraints:
+  - stricter for corp admin users
+
+7. Configure events and auditing:
+- Login, logout, admin event logging ON
+- Export events to central log pipeline
+
+8. Configure environment variables in authservice:
+- `KEYCLOAK_BASE_URL`
+- `KEYCLOAK_PUBLIC_REALM`
+- `KEYCLOAK_CORP_REALM`
+- `KEYCLOAK_CLIENT_ID_PUBLIC`
+- `KEYCLOAK_CLIENT_ID_CORP`
+- `KEYCLOAK_CLIENT_SECRET_CORP`
+- `GOOGLE_IDP_ALIAS`
+
+9. Validate integration:
+- `GET /api/v1/health` should report:
+  - `keycloak.status=UP`
+  - `db.status=UP`
+
+### 3.8 Keycloak Configuration Checklist
+- Realm separation complete (`public` vs `corp`)
+- Redirect URIs exact and environment-specific
+- Web origins restricted (no wildcard in prod)
+- MFA required for corp users
+- Brute-force detection enabled
+- SSL required in production
+- Events enabled and exported
+- Secrets loaded from vault/secure store (not hardcoded)
 
 The API catalog below mirrors the `auth-service` entries under "Auth" in the root platform plan, covering public login, corp login + MFA, session management, and admin operations.
 
@@ -191,6 +354,86 @@ Base path: `/api/v1`
 8. `DELETE /corp/users/{id}/roles/{roleId}`
 9. `POST /corp/users/{id}/force-mfa-reset`
 10. `POST /corp/users/{id}/session-revoke`
+
+### 4.5 API Testing Runbook (Business-Flow Validation)
+Use this flow to validate that APIs meet business requirements end-to-end.
+
+Preconditions:
+- Keycloak configured as in section 3.7.
+- Auth DB reachable.
+- Health check returns `UP`.
+- Test users:
+  - Public user via Google account
+  - Corp staff user with assigned role
+
+#### A) Platform Readiness
+1. `GET /api/v1/health/live` -> expect HTTP 200 + `status=UP`
+2. `GET /api/v1/health/ready` -> expect HTTP 200 only when Keycloak + DB are reachable
+
+#### B) Public Login Journey
+1. `GET /api/v1/auth/public/google/start`
+- Expect `authorizationUrl`, `state`, `codeChallengeMethod=S256`
+2. Redirect browser to `authorizationUrl`, complete Google login
+3. `GET /api/v1/auth/public/google/callback?code=...&state=...`
+- Expect tokens and user context
+- If invalid/expired state, expect `AUTH_INVALID_STATE` error code
+4. `POST /api/v1/auth/token/refresh`
+- Expect new access token
+5. `POST /api/v1/auth/public/logout`
+- Expect HTTP 204
+
+Business requirement validated:
+- Public users can login using Google and receive valid session tokens.
+
+#### C) Customer Profile and Session Journey
+1. `GET /api/v1/users/me`
+- Expect customer profile payload
+2. `PATCH /api/v1/users/me`
+- Update first/last name and mobile
+3. `GET /api/v1/sessions/me`
+- Expect active sessions list
+4. `DELETE /api/v1/sessions/me/{sessionId}`
+- Expect session revocation success
+
+Business requirement validated:
+- Customer identity can be read/updated and sessions can be controlled.
+
+#### D) Workforce Login and Security Journey
+1. `POST /api/v1/auth/corp/login/init`
+- Expect `loginFlowId` + `allowedFactors`
+2. `POST /api/v1/auth/corp/login/verify`
+- If MFA required, expect `challengeRequired=true`
+3. `POST /api/v1/auth/corp/mfa/challenge`
+- Expect challenge payload
+4. `POST /api/v1/auth/corp/mfa/verify`
+- Expect session tokens
+5. `POST /api/v1/auth/corp/logout`
+- Expect HTTP 204
+
+Business requirement validated:
+- Workforce users are forced through stricter login policy with MFA.
+
+#### E) Corporate User Management Journey
+1. `POST /api/v1/corp/users`
+2. `PATCH /api/v1/corp/users/{id}`
+3. `POST /api/v1/corp/users/{id}/roles`
+4. `POST /api/v1/corp/users/{id}/force-mfa-reset`
+5. `POST /api/v1/corp/users/{id}/session-revoke`
+
+Business requirement validated:
+- Admins can provision/manage workforce users and enforce security controls.
+
+#### F) Negative and Error-Contract Tests
+Run at least these:
+- Invalid JSON body -> expect `400 INVALID_JSON`
+- Validation failure (missing required fields) -> `400 VALIDATION_FAILED`
+- Invalid state/callback -> `400 AUTH_INVALID_STATE`
+- Unknown user id in profile APIs -> `404 USER_NOT_FOUND`
+- Keycloak unavailable -> `502 KEYCLOAK_*` error code family
+- Missing required prod config -> `500 CONFIG_MISSING`
+
+Business requirement validated:
+- Error handling is consistent and machine-readable for frontend and monitoring tools.
 
 ## 5. DTO Classes (Implementation Contract)
 Use Java records for immutable API contracts and Bean Validation annotations for request validation.

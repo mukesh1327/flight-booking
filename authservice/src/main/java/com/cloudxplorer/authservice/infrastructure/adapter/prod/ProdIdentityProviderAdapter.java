@@ -4,6 +4,9 @@ import com.cloudxplorer.authservice.domain.model.IdentityAuthResult;
 import com.cloudxplorer.authservice.domain.model.IdentityTokens;
 import com.cloudxplorer.authservice.domain.model.IdentityUser;
 import com.cloudxplorer.authservice.domain.port.IdentityProviderPort;
+import com.cloudxplorer.authservice.exception.BadRequestException;
+import com.cloudxplorer.authservice.exception.ConfigurationException;
+import com.cloudxplorer.authservice.exception.ExternalServiceException;
 import com.cloudxplorer.authservice.infrastructure.config.AuthServiceProperties;
 import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Profile;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 import java.util.Map;
@@ -42,6 +46,10 @@ public class ProdIdentityProviderAdapter implements IdentityProviderPort {
     @Override
     @SuppressWarnings("unchecked")
     public IdentityAuthResult exchangePublicGoogleCode(String code, String codeVerifier) {
+        if (code == null || code.isBlank() || codeVerifier == null || codeVerifier.isBlank()) {
+            throw new BadRequestException("AUTH_CODE_INVALID", "Authorization code or code verifier is missing");
+        }
+
         Map<String, Object> tokenBody = postToken(Map.of(
             "grant_type", "authorization_code",
             "client_id", properties.publicClient().clientId(),
@@ -55,11 +63,16 @@ public class ProdIdentityProviderAdapter implements IdentityProviderPort {
         String refreshToken = (String) tokenBody.getOrDefault("refresh_token", "");
         long expiresIn = asLong(tokenBody.getOrDefault("expires_in", 900));
 
-        Map<String, Object> userInfo = restClient.get()
-            .uri(tokenBaseUrl().replace("/token", "/userinfo"))
-            .headers(headers -> headers.setBearerAuth(accessToken))
-            .retrieve()
-            .body(Map.class);
+        Map<String, Object> userInfo;
+        try {
+            userInfo = restClient.get()
+                .uri(tokenBaseUrl().replace("/token", "/userinfo"))
+                .headers(headers -> headers.setBearerAuth(accessToken))
+                .retrieve()
+                .body(Map.class);
+        } catch (RestClientException ex) {
+            throw new ExternalServiceException("KEYCLOAK_USERINFO_FAILED", "Unable to fetch user info from identity provider", ex);
+        }
 
         String email = userInfo == null ? null : Objects.toString(userInfo.get("email"), "");
         String firstName = userInfo == null ? "" : Objects.toString(userInfo.get("given_name"), "");
@@ -72,6 +85,10 @@ public class ProdIdentityProviderAdapter implements IdentityProviderPort {
 
     @Override
     public IdentityTokens refresh(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BadRequestException("REFRESH_TOKEN_MISSING", "Refresh token is required");
+        }
+
         Map<String, Object> body = postToken(Map.of(
             "grant_type", "refresh_token",
             "client_id", properties.publicClient().clientId(),
@@ -87,6 +104,10 @@ public class ProdIdentityProviderAdapter implements IdentityProviderPort {
 
     @Override
     public void logout(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BadRequestException("REFRESH_TOKEN_MISSING", "Refresh token is required");
+        }
+
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("client_id", properties.publicClient().clientId());
         if (properties.publicClient().clientSecret() != null && !properties.publicClient().clientSecret().isBlank()) {
@@ -94,14 +115,19 @@ public class ProdIdentityProviderAdapter implements IdentityProviderPort {
         }
         form.add("refresh_token", refreshToken);
 
-        restClient.post()
-            .uri(tokenBaseUrl().replace("/token", "/logout"))
-            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-            .body(form)
-            .retrieve()
-            .toBodilessEntity();
+        try {
+            restClient.post()
+                .uri(tokenBaseUrl().replace("/token", "/logout"))
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form)
+                .retrieve()
+                .toBodilessEntity();
+        } catch (RestClientException ex) {
+            throw new ExternalServiceException("KEYCLOAK_LOGOUT_FAILED", "Unable to logout from identity provider", ex);
+        }
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, Object> postToken(Map<String, String> params) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         params.forEach((key, value) -> {
@@ -110,12 +136,16 @@ public class ProdIdentityProviderAdapter implements IdentityProviderPort {
             }
         });
 
-        return restClient.post()
-            .uri(tokenBaseUrl())
-            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-            .body(form)
-            .retrieve()
-            .body(Map.class);
+        try {
+            return restClient.post()
+                .uri(tokenBaseUrl())
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form)
+                .retrieve()
+                .body(Map.class);
+        } catch (RestClientException ex) {
+            throw new ExternalServiceException("KEYCLOAK_TOKEN_EXCHANGE_FAILED", "Unable to exchange token with identity provider", ex);
+        }
     }
 
     private String tokenBaseUrl() {
@@ -124,7 +154,7 @@ public class ProdIdentityProviderAdapter implements IdentityProviderPort {
 
     private static void require(String value, String name) {
         if (value == null || value.isBlank()) {
-            throw new IllegalStateException("Missing required config: " + name);
+            throw new ConfigurationException("CONFIG_MISSING", "Missing required config: " + name);
         }
     }
 
