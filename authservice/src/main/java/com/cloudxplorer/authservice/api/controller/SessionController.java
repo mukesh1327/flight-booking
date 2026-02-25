@@ -2,6 +2,7 @@ package com.cloudxplorer.authservice.api.controller;
 
 import com.cloudxplorer.authservice.api.SessionApi;
 import com.cloudxplorer.authservice.api.dto.publicauth.AuthSessionResponse;
+import com.cloudxplorer.authservice.api.dto.session.LogoutRequest;
 import com.cloudxplorer.authservice.api.dto.session.RefreshTokenRequest;
 import com.cloudxplorer.authservice.api.dto.session.SessionListResponse;
 import com.cloudxplorer.authservice.application.service.AuthApplicationService;
@@ -34,6 +35,12 @@ public class SessionController implements SessionApi {
     @Override
     public ResponseEntity<Void> revokeSession(String userId, String sessionId) {
         service.revokeSession(currentUserResolver.resolveUserId(userId), sessionId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> logout(String userId, @Valid @RequestBody LogoutRequest request) {
+        service.logout(currentUserResolver.resolveUserId(userId), request);
         return ResponseEntity.noContent().build();
     }
 }

@@ -1,6 +1,7 @@
 package com.cloudxplorer.authservice.api;
 
 import com.cloudxplorer.authservice.api.dto.publicauth.AuthSessionResponse;
+import com.cloudxplorer.authservice.api.dto.session.LogoutRequest;
 import com.cloudxplorer.authservice.api.dto.session.RefreshTokenRequest;
 import com.cloudxplorer.authservice.api.dto.session.SessionListResponse;
 import jakarta.validation.Valid;
@@ -18,5 +19,11 @@ public interface SessionApi {
     ResponseEntity<Void> revokeSession(
         @RequestHeader(value = "X-User-Id", required = false) String userId,
         @PathVariable("sessionId") String sessionId
+    );
+
+    @PostMapping("/api/v1/auth/logout")
+    ResponseEntity<Void> logout(
+        @RequestHeader(value = "X-User-Id", required = false) String userId,
+        @Valid @RequestBody LogoutRequest request
     );
 }

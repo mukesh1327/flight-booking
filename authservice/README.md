@@ -1,5 +1,26 @@
 ﻿# Auth Service Plan (Keycloak + Spring Boot)
 
+## Platform-Level Context
+The root `README.md` describes the SkyFly Flight Booking Platform plan where `auth-service` is one of the core six services. That document:
+- defines the polyglot architecture table with `auth-service` using Spring Boot + PostgreSQL.
+- outlines the shared API endpoints (google/corp login, refresh, logout) that this service must expose.
+- captures the end-to-end booking/cancellation/staff flows, the security baseline (mTLS, OAuth2, Vault secrets), and the phased roadmap we follow for MVP and beyond.
+This service-specific plan is an implementation contract that layers on those platform constraints with the Keycloak + Spring Boot execution detail.
+
+## Health Endpoints
+The service publishes lightweight health responses that gate the gateway-level `GET /api/v1/health` entry and support readiness/liveness checks for orchestration tooling:
+- `GET /api/v1/health`
+- `GET /api/v1/health/ready`
+- `GET /api/v1/health/live`
+
+Each endpoint currently returns the same `HealthResponse` payload (status, timestamp, environment, details) so operators can rely on a consistent structure regardless of the check they call.
+  * `status` is always `"UP"` today, matching the static response from `HealthController`.
+  * `timestamp` is the server instant when the response was built.
+  * `environment` mirrors the active authservice environment (`authservice.active-env`).
+  * `details` contains metadata pulled from runtime properties: `appBaseUrl`, `keycloakBaseUrl`, `publicClientId`, `corpClientId`, plus a `mode` value that simply echoes the specific check (`health`, `readiness`, `liveness`).
+
+Because pretty JSON is enabled globally in the application, each health payload is formatted for readability by default when queried via curl/postman; the pretty-printed output makes the map entries easy to scan in logs or dashboards.
+
 ## 1. Objective
 Design and implement auth for two user groups:
 - `PUBLIC` customers: Google social login first.
@@ -77,6 +98,8 @@ Design and implement auth for two user groups:
 - Configure custom claims mappers:
   - `user_id`, `realm`, `roles`, `mfa_level`.
 
+The API catalog below mirrors the `auth-service` entries under "Auth" in the root platform plan, covering public login, corp login + MFA, session management, and admin operations.
+
 ## 4. APIs to Develop in authservice
 Base path: `/api/v1`
 
@@ -150,6 +173,11 @@ Base path: `/api/v1`
 
 5. `DELETE /sessions/me/{sessionId}`
 - Purpose: revoke session.
+- Response: `204`.
+
+6. `POST /auth/logout`
+- Purpose: shared logout that revokes refresh tokens and (optionally) all sessions.
+- Request: `LogoutRequest`.
 - Response: `204`.
 
 ### 4.4 Corporate User Management APIs (Auth Scope)
