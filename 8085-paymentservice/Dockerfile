@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM registry.redhat.io/ubi9/python-39:9.7
 
 WORKDIR /app
 COPY requirements.txt .

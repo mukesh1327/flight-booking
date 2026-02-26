@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM registry.redhat.io/ubi9/nodejs-22:9.7
 
 WORKDIR /app
 COPY package.json .
