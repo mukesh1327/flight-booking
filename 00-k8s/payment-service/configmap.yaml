@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-config
+  labels:
+    app: payment-service
+data:
+  APP_ENV: "dev"
+  UVICORN_HOST: "0.0.0.0"
+  UVICORN_PORT: "8085"
+  POSTGRES_HOST: "postgres-payment"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "paymentdb"
+  POSTGRES_USER: "payment_user"

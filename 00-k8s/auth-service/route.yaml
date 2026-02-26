@@ -1,0 +1,17 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: auth-service
+  labels:
+    app: auth-service
+spec:
+  host: auth.skyfly.example
+  to:
+    kind: Service
+    name: auth-service
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

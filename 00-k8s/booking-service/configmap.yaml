@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: booking-service-config
+  labels:
+    app: booking-service
+data:
+  ASPNETCORE_URLS: "http://0.0.0.0:8083"
+  APP_ENV: "dev"
+  MSSQL_HOST: "mssql-booking"
+  MSSQL_PORT: "1433"
+  MSSQL_DATABASE: "bookingdb"
+  MSSQL_USER: "sa"
