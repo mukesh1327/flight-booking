@@ -12,9 +12,9 @@ interface UseAuthReturn {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
-  logout: () => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (email: string, password: string, firstName: string, lastName: string) => Promise<boolean>;
+  logout: () => Promise<boolean>;
   setUser: (user: User | null) => void;
 }
 
@@ -52,12 +52,15 @@ export const useAuth = (): UseAuthReturn => {
           setUser(userData);
           localStorage.setItem('user', JSON.stringify(userData));
           localStorage.setItem('token', token);
+          return true;
         } else {
           setError(response.error?.message || 'Login failed');
+          return false;
         }
       } catch (err) {
         setError('An error occurred during login');
         console.error(err);
+        return false;
       } finally {
         setIsLoading(false);
       }
@@ -78,12 +81,15 @@ export const useAuth = (): UseAuthReturn => {
           setUser(userData);
           localStorage.setItem('user', JSON.stringify(userData));
           localStorage.setItem('token', token);
+          return true;
         } else {
           setError(response.error?.message || 'Registration failed');
+          return false;
         }
       } catch (err) {
         setError('An error occurred during registration');
         console.error(err);
+        return false;
       } finally {
         setIsLoading(false);
       }
@@ -98,9 +104,14 @@ export const useAuth = (): UseAuthReturn => {
       setUser(null);
       localStorage.removeItem('user');
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('actorType');
+      localStorage.removeItem('userId');
+      return true;
     } catch (err) {
       setError('An error occurred during logout');
       console.error(err);
+      return false;
     } finally {
       setIsLoading(false);
     }

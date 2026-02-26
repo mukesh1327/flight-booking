@@ -1,8 +1,3 @@
-/**
- * User Service
- * Handles user profile and preferences (mocked)
- */
-
 import type {
   User,
   ApiResponse,
@@ -10,144 +5,176 @@ import type {
   SMSNotification,
   PushNotification,
 } from '../types';
-import { MOCK_CURRENT_USER } from '../constants/users';
+import { apiRequest, getAuthContext } from './apiClient';
+
+interface BackendUser {
+  userId: string;
+  email: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  mobile?: string;
+  mobileVerified?: boolean;
+  preferences?: User['preferences'];
+}
+
+const toErrorResponse = <T>(response: ApiResponse<unknown>): ApiResponse<T> => ({
+  success: false,
+  error: response.error || {
+    code: 'API_ERROR',
+    message: 'Request failed',
+  },
+  timestamp: response.timestamp,
+});
+
+const mapBackendUser = (user: BackendUser): User => {
+  const firstName = user.firstName || user.name?.split(' ')[0] || 'SkyFly';
+  const lastName = user.lastName || user.name?.split(' ').slice(1).join(' ') || 'User';
+
+  return {
+    id: user.userId,
+    email: user.email,
+    firstName,
+    lastName,
+    phone: user.mobile,
+    createdAt: new Date(),
+    preferences: user.preferences,
+  };
+};
 
 class UserService {
-  /**
-   * GET /api/v1/users/me
-   */
   async getMe(): Promise<ApiResponse<User>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          data: MOCK_CURRENT_USER,
-          timestamp: new Date(),
-        });
-      }, 300);
-    });
+    const response = await apiRequest<BackendUser>('customer', '/api/v1/users/me');
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<User>(response);
+    }
+
+    return {
+      success: true,
+      data: mapBackendUser(response.data),
+      timestamp: response.timestamp,
+    };
   }
 
-  /**
-   * PATCH /api/v1/users/me
-   */
   async patchMe(updates: Partial<User>): Promise<ApiResponse<User>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const updated = { ...MOCK_CURRENT_USER, ...updates };
-        resolve({
-          success: true,
-          data: updated,
-          timestamp: new Date(),
-        });
-      }, 400);
+    const response = await apiRequest<BackendUser>('customer', '/api/v1/users/me', {
+      method: 'PATCH',
+      body: {
+        firstName: updates.firstName,
+        lastName: updates.lastName,
+        email: updates.email,
+        mobile: updates.phone,
+        preferences: updates.preferences,
+      },
     });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<User>(response);
+    }
+
+    return {
+      success: true,
+      data: mapBackendUser(response.data),
+      timestamp: response.timestamp,
+    };
   }
 
-  /**
-   * POST /api/v1/users/me/mobile/verify/request
-   */
-  async requestMobileVerification(phone: string): Promise<ApiResponse<string>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          data: `otp-request-${phone}-${Date.now()}`,
-          timestamp: new Date(),
-        });
-      }, 300);
+  async requestMobileVerification(_phone: string): Promise<ApiResponse<string>> {
+    const response = await apiRequest<{ challengeId: string }>('customer', '/api/v1/users/me/mobile/verify/request', {
+      method: 'POST',
     });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<string>(response);
+    }
+
+    return {
+      success: true,
+      data: response.data.challengeId,
+      timestamp: response.timestamp,
+    };
   }
 
-  /**
-   * POST /api/v1/users/me/mobile/verify/confirm
-   */
-  async confirmMobileVerification(
-    requestId: string,
-    otp: string
-  ): Promise<ApiResponse<boolean>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Mock OTP validation
-        void requestId;
-        if (otp === '123456') {
-          resolve({
-            success: true,
-            data: true,
-            timestamp: new Date(),
-          });
-        } else {
-          resolve({
-            success: false,
-            error: {
-              code: 'INVALID_OTP',
-              message: 'Invalid OTP',
-            },
-            timestamp: new Date(),
-          });
-        }
-      }, 400);
+  async confirmMobileVerification(requestId: string, otp: string): Promise<ApiResponse<boolean>> {
+    const response = await apiRequest<{ verified: boolean }>('customer', '/api/v1/users/me/mobile/verify/confirm', {
+      method: 'POST',
+      body: { requestId, otp },
     });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<boolean>(response);
+    }
+
+    return {
+      success: true,
+      data: !!response.data.verified,
+      timestamp: response.timestamp,
+    };
   }
 
-  /**
-   * POST /api/v1/notifications/email
-   */
-  async sendEmailNotification(
-    payload: EmailNotification
-  ): Promise<ApiResponse<boolean>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        void payload;
-        resolve({
-          success: true,
-          data: true,
-          timestamp: new Date(),
-        });
-      }, 250);
+  async sendEmailNotification(payload: EmailNotification): Promise<ApiResponse<boolean>> {
+    const response = await apiRequest<{ accepted: boolean }>('customer', '/api/v1/notifications/email', {
+      method: 'POST',
+      body: payload,
     });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<boolean>(response);
+    }
+
+    return {
+      success: true,
+      data: response.data.accepted,
+      timestamp: response.timestamp,
+    };
   }
 
-  /**
-   * POST /api/v1/notifications/sms
-   */
   async sendSmsNotification(payload: SMSNotification): Promise<ApiResponse<boolean>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        void payload;
-        resolve({
-          success: true,
-          data: true,
-          timestamp: new Date(),
-        });
-      }, 250);
+    const response = await apiRequest<{ accepted: boolean }>('customer', '/api/v1/notifications/sms', {
+      method: 'POST',
+      body: payload,
     });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<boolean>(response);
+    }
+
+    return {
+      success: true,
+      data: response.data.accepted,
+      timestamp: response.timestamp,
+    };
   }
 
-  /**
-   * POST /api/v1/notifications/push
-   */
-  async sendPushNotification(
-    payload: PushNotification
-  ): Promise<ApiResponse<boolean>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        void payload;
-        resolve({
-          success: true,
-          data: true,
-          timestamp: new Date(),
-        });
-      }, 250);
+  async sendPushNotification(payload: PushNotification): Promise<ApiResponse<boolean>> {
+    const response = await apiRequest<{ accepted: boolean }>('customer', '/api/v1/notifications/push', {
+      method: 'POST',
+      body: payload,
     });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<boolean>(response);
+    }
+
+    return {
+      success: true,
+      data: response.data.accepted,
+      timestamp: response.timestamp,
+    };
   }
 
-  // Backward-compatible aliases
   async getProfile(): Promise<ApiResponse<User>> {
     return this.getMe();
   }
 
   async updateProfile(updates: Partial<User>): Promise<ApiResponse<User>> {
+    const context = getAuthContext();
+    if (updates.id) {
+      localStorage.setItem('userId', updates.id);
+    } else {
+      localStorage.setItem('userId', context.userId);
+    }
     return this.patchMe(updates);
   }
 }

@@ -224,7 +224,7 @@ Before you add each client record, open the Keycloak admin console for the appro
 2. In **APIs & Services → OAuth consent screen**, define the `RHBK UI` application (or the equivalent public naming) and add the Keycloak and RHBK UI domains as **Authorized domains**; choose `Internal` if all users are within your organization, otherwise `External`.
 3. Under **Credentials → Create Credentials → OAuth client ID**, pick **Web application** and configure:
    - **Authorized redirect URIs**: each Keycloak Google broker endpoint (e.g., `https://<KEYCLOAK_BASE_URL>/realms/skyfly-public/broker/google/endpoint`). Add the same URIs for any staging/test realm you operate.
-   - **Authorized JavaScript origins**: the RHBK UI domains (e.g., `https://www.skyfly.example`) so the browser can trigger the OAuth flow.
+   - **Authorized JavaScript origins**: the RHBK UI domains (e.g., `https://www.skyfly.in`) so the browser can trigger the OAuth flow.
 4. After creation, copy the **Client ID** and **Client secret** into your secure store, then paste them into the `client_id` and `client_secret` fields of the Keycloak Identity Provider configuration above.
 5. If you expect to use additional Google APIs, enable those scopes on the consent screen and list them under **Default Scopes** (`openid email profile` plus the extra scopes) so Keycloak requests the necessary consent.
 6. Keep the Google credentials in sync with your CI/CD/deployment secrets (do not check them in) and rotate them via the Google Cloud console when needed; update Keycloak and any stored copies immediately after rotation.

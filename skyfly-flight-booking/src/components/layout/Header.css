@@ -106,6 +106,15 @@
   object-fit: cover;
 }
 
+.user-avatar-fallback {
+  background: #dbeafe;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
 .user-name {
   font-size: 13px;
   font-weight: 600;

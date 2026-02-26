@@ -1,4 +1,39 @@
-﻿# SkyFly Flight Booking Platform Plan
+﻿# SkyFly Flight Booking Platform
+
+## Latest Implementation Update (Feb 26, 2026)
+
+### UI Status (`skyfly-flight-booking`)
+- Mock data removed from service layer and replaced with real HTTP integrations.
+- UI is wired to live local services:
+  - `auth-service` (`8081`)
+  - `flight-service` (`8082`)
+  - `booking-service` (`8083`)
+  - `customer-service` (`8084`)
+  - `payment-service` (`8085`)
+- Vite proxy routes are configured in UI for local development:
+  - `/auth-api`, `/flight-api`, `/booking-api`, `/customer-api`, `/payment-api`, `/gateway-api`
+
+### Current Business Flow Available in UI
+1. Search flights
+2. Select flight
+3. Login/Register (auth gating)
+4. Enter passenger and contact details
+5. Payment intent -> authorize -> capture
+6. Booking confirmation page
+7. My Bookings page (list + cancel)
+8. Profile page (load + update)
+
+### Run Order (Local)
+1. Start services on configured ports (`8081`-`8085`, optional gateway on `8000`).
+2. Start UI:
+   - `cd skyfly-flight-booking`
+   - `npm install`
+   - `npm run dev`
+3. Open `http://localhost:5173`
+
+### Notes
+- Flight search airport dropdown is now API-driven from live `flight-service` search response (unique `from/to` codes), not hardcoded options.
+- Backend currently exposes airport codes in search payload; city/master metadata can be fully API-driven once a dedicated airport master endpoint is added.
 
 ## Short Description of SkyFly Flight Booking App
 SkyFly is an airline booking platform for customers and airline staff. It supports user login, flight discovery, fare quote, booking, payment, and trip notifications.
@@ -12,6 +47,26 @@ SkyFly is an airline booking platform for customers and airline staff. It suppor
 | `booking-service` | .NET 8 + MSSQL | Owns reservation/PNR state, booking confirmation, cancel/change workflow orchestration. | Kafka, outbox pattern, saga orchestration |
 | `customer-service` | Node.js + MongoDB | Manages customer profile/preferences and sends email/SMS/push notifications. | Kafka, SMTP/SMS providers, template engine |
 | `payment-service` | Python FastAPI + PostgreSQL | Executes payment intent/authorize/capture/refund and settlement workflows. | Payment provider adapters, Kafka, idempotency middleware |
+
+## Local Port Mapping (Verified)
+| Service | App Port | Database | DB Port | Verified From |
+|---|---|---|---|---|
+| `auth-service` | `8081` | `postgres (auth)` | `5432` | `application.yaml` + app/infra compose |
+| `flight-service` | `8082` | `mysql` | `3306` | `application.properties` + app/infra compose |
+| `booking-service` | `8083` | `mssql` | `1433` | `Program.cs` + app/infra compose |
+| `customer-service` | `8084` | `mongodb` | `27017` | `index.js` + app/infra compose |
+| `payment-service` | `8085` | `postgres` (planned) | `5432` | app compose + README stack plan |
+| `api-gateway` | `8000`, `8443`, `8001` | `postgres (kong)` | `5434` | infra compose |
+
+### Shared Platform Ports
+| Service | Port(s) |
+|---|---|
+| `kafka` | `9092`, `9093` |
+| `keycloak` | `8090` (container `8080`) |
+| `postgres (keycloak)` | `5433` |
+| `redis` | `6379` |
+| `elasticsearch` | `9200` |
+| `kibana` | `5601` |
 
 Coverage note:
 - Frameworks covered: `Spring Boot`, `Quarkus`, `.NET 8`, `Node.js`, `Python FastAPI`.

@@ -3,10 +3,11 @@
  * Search form for flight booking
  */
 
-import React, { useState } from 'react';
-import type { FlightSearchRequest } from '../../types';
+import React, { useEffect, useState } from 'react';
+import type { Airport, FlightSearchRequest } from '../../types';
 import { TRIP_TYPES, CABIN_CLASSES } from '../../constants';
 import { Button } from '../common';
+import { flightService } from '../../services';
 import './FlightSearch.css';
 
 interface FlightSearchProps {
@@ -30,6 +31,27 @@ export const FlightSearch: React.FC<FlightSearchProps> = ({
   const [children, setChildren] = useState(0);
   const [infants, setInfants] = useState(0);
   const [classOfTravel, setClassOfTravel] = useState<ClassOfTravel>('economy');
+  const [airportOptions, setAirportOptions] = useState<Airport[]>([]);
+
+  useEffect(() => {
+    const loadAirportOptions = async () => {
+      const response = await flightService.getAirportOptions();
+      if (!response.success || !response.data || !response.data.length) {
+        return;
+      }
+
+      setAirportOptions(response.data);
+      if (!response.data.find((airport) => airport.code === fromCode)) {
+        setFromCode(response.data[0].code);
+      }
+      if (!response.data.find((airport) => airport.code === toCode)) {
+        const fallbackTo = response.data[1]?.code || response.data[0].code;
+        setToCode(fallbackTo);
+      }
+    };
+
+    void loadAirportOptions();
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +74,13 @@ export const FlightSearch: React.FC<FlightSearchProps> = ({
     setFromCode(toCode);
     setToCode(temp);
   };
+
+  const options = airportOptions.length
+    ? airportOptions
+    : [
+        { code: 'DEL', city: 'DEL', name: 'DEL Airport', country: 'India', timezone: 'IST' },
+        { code: 'BOM', city: 'BOM', name: 'BOM Airport', country: 'India', timezone: 'IST' },
+      ];
 
   return (
     <form className="flight-search-form" onSubmit={handleSearch}>
@@ -77,14 +106,11 @@ export const FlightSearch: React.FC<FlightSearchProps> = ({
         <div className="search-field">
           <label>From</label>
           <select value={fromCode} onChange={(e) => setFromCode(e.target.value)}>
-            <option value="DEL">Delhi (DEL)</option>
-            <option value="BOM">Mumbai (BOM)</option>
-            <option value="BLR">Bangalore (BLR)</option>
-            <option value="HYD">Hyderabad (HYD)</option>
-            <option value="COK">Kochi (COK)</option>
-            <option value="MAA">Chennai (MAA)</option>
-            <option value="PNQ">Pune (PNQ)</option>
-            <option value="GOI">Goa (GOI)</option>
+            {options.map((airport) => (
+              <option key={`from-${airport.code}`} value={airport.code}>
+                {airport.city} ({airport.code})
+              </option>
+            ))}
           </select>
         </div>
 
@@ -102,14 +128,11 @@ export const FlightSearch: React.FC<FlightSearchProps> = ({
         <div className="search-field">
           <label>To</label>
           <select value={toCode} onChange={(e) => setToCode(e.target.value)}>
-            <option value="DEL">Delhi (DEL)</option>
-            <option value="BOM">Mumbai (BOM)</option>
-            <option value="BLR">Bangalore (BLR)</option>
-            <option value="HYD">Hyderabad (HYD)</option>
-            <option value="COK">Kochi (COK)</option>
-            <option value="MAA">Chennai (MAA)</option>
-            <option value="PNQ">Pune (PNQ)</option>
-            <option value="GOI">Goa (GOI)</option>
+            {options.map((airport) => (
+              <option key={`to-${airport.code}`} value={airport.code}>
+                {airport.city} ({airport.code})
+              </option>
+            ))}
           </select>
         </div>
 

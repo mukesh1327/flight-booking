@@ -22,6 +22,9 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const avatarLabel = user
+    ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 'U'
+    : '';
 
   return (
     <header className="header">
@@ -40,8 +43,8 @@ export const Header: React.FC<HeaderProps> = ({
           <a href="#" onClick={(e) => { e.preventDefault(); onNavigate?.('/bookings'); }}>
             My Bookings
           </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); onNavigate?.('/about'); }}>
-            About
+          <a href="#" onClick={(e) => { e.preventDefault(); onNavigate?.('/profile'); }}>
+            Profile
           </a>
         </nav>
 
@@ -49,7 +52,11 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="header-user">
           {user ? (
             <div className="user-profile">
-              <img src={user.avatar} alt={user.firstName} className="user-avatar" />
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.firstName} className="user-avatar" />
+              ) : (
+                <div className="user-avatar user-avatar-fallback">{avatarLabel}</div>
+              )}
               <span className="user-name">{user.firstName}</span>
               <button
                 className="logout-btn"

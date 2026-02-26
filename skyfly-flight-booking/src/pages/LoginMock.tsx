@@ -250,8 +250,8 @@ export const LoginMockPage: React.FC<LoginMockPageProps> = ({ onBackHome }) => {
       <main className="login-mock-main">
         <section className="login-mock-panel">
           <div className="login-mock-title">
-            <h1>Simple Mock Testing</h1>
-            <p>Easy test screen for login and all mocked services.</p>
+            <h1>Service Integration Testing</h1>
+            <p>Run login and booking flows against live local microservices.</p>
           </div>
 
           <div className="login-mode-switch">

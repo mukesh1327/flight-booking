@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import type { FlightSearchRequest } from '../types';
+import type { FlightSearchRequest, User } from '../types';
 import { FlightSearch } from '../components/flight';
 import { Header, Footer } from '../components/layout';
 import './Home.css';
@@ -13,16 +13,20 @@ interface HomePageProps {
   onSearch: (criteria: FlightSearchRequest) => void;
   isSearching?: boolean;
   onLogin?: () => void;
+  user?: User | null;
+  onNavigate?: (path: string) => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
   onSearch,
   isSearching = false,
   onLogin,
+  user,
+  onNavigate,
 }) => {
   return (
     <div className="home-page">
-      <Header onNavigate={(path: string) => { window.location.href = path; }} onLogin={onLogin} />
+      <Header user={user} onNavigate={onNavigate} onLogin={onLogin} />
 
       {/* Hero Section */}
       <section className="hero-section">

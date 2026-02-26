@@ -1,336 +1,261 @@
-/**
- * Booking Service
- * Handles all booking-related API calls (mocked)
- */
-
 import type {
   Booking,
   BookingRequest,
   BookingConfirmationRequest,
   BookingChangeRequest,
   ApiResponse,
+  FlightWithPrice,
+  PassengerInfo,
 } from '../types';
-import { MOCK_FLIGHTS } from '../constants/flights';
+import { apiRequest, getAuthContext, toDate } from './apiClient';
+import { flightService } from './flightService';
+
+interface BackendBooking {
+  bookingId: string;
+  userId: string;
+  flightId: string;
+  seatCount: number;
+  status: string;
+  updatedAt: string;
+}
+
+interface BackendBookingList {
+  count: number;
+  items: BackendBooking[];
+}
+
+const toErrorResponse = <T>(response: ApiResponse<unknown>): ApiResponse<T> => ({
+  success: false,
+  error: response.error || {
+    code: 'API_ERROR',
+    message: 'Request failed',
+  },
+  timestamp: response.timestamp,
+});
+
+const statusToBookingStatus = (status: string): Booking['status'] => {
+  switch (status.toUpperCase()) {
+    case 'CONFIRMED':
+      return 'confirmed';
+    case 'CANCELLED':
+      return 'cancelled';
+    case 'COMPLETED':
+      return 'completed';
+    default:
+      return 'pending';
+  }
+};
+
+const statusToPaymentStatus = (status: string): Booking['paymentStatus'] => {
+  switch (status.toUpperCase()) {
+    case 'CONFIRMED':
+      return 'captured';
+    case 'CANCELLED':
+      return 'refunded';
+    default:
+      return 'pending';
+  }
+};
+
+const makeFallbackPassenger = (): PassengerInfo => ({
+  title: 'Mr',
+  firstName: 'Guest',
+  lastName: 'User',
+  dateOfBirth: new Date('1990-01-01'),
+  nationality: 'IN',
+  email: 'guest@skyfly.dev',
+  phone: '+910000000000',
+  type: 'adult',
+});
 
 class BookingService {
-  private bookings = new Map<string, Booking>();
+  private async mapBackendBooking(item: BackendBooking): Promise<Booking> {
+    let pricedFlight: FlightWithPrice | null = null;
+    const details = await flightService.getFlightDetails(item.flightId);
+    const availability = await flightService.getFlightAvailability(item.flightId);
 
-  constructor() {
-    const seededBookings = this.createSeedBookings();
-    seededBookings.forEach((booking) => this.bookings.set(booking.id, booking));
-  }
-
-  private createSeedBookings(): Booking[] {
-    const first = MOCK_FLIGHTS[0];
-    const second = MOCK_FLIGHTS[1];
-    const third = MOCK_FLIGHTS[2];
-    const now = new Date();
-
-    return [
-      {
-        id: 'bk-001',
-        bookingReference: 'SK672891',
-        userId: 'user-001',
-        flights: first ? [first] : [],
-        passengers: [],
-        pricing: first?.pricing || {
-          baseFare: 5000,
-          taxes: 500,
-          fees: 100,
-          totalPrice: 5600,
+    if (details.success && details.data) {
+      pricedFlight = {
+        flight: details.data,
+        pricing: {
+          baseFare: 0,
+          taxes: 0,
+          fees: 0,
+          totalPrice: 0,
           currency: 'INR',
           fareBasis: 'Y0STANDARD',
           fareFamily: 'economy',
         },
-        status: 'completed',
-        paymentStatus: 'captured',
-        bookingDate: new Date('2025-12-20'),
-        createdAt: new Date('2025-12-20'),
-      },
-      {
-        id: 'bk-002',
-        bookingReference: 'SK672892',
-        userId: 'user-001',
-        flights: [second, third].filter(Boolean) as Booking['flights'],
-        passengers: [],
-        pricing: second?.pricing || {
-          baseFare: 3500,
-          taxes: 350,
-          fees: 75,
-          totalPrice: 3925,
-          currency: 'INR',
-          fareBasis: 'Y0LIGHT',
-          fareFamily: 'economy',
+        availability: {
+          seats: availability.data?.seats ?? 0,
         },
-        status: 'confirmed',
-        paymentStatus: 'captured',
-        bookingDate: new Date('2026-01-10'),
-        createdAt: new Date('2026-01-10'),
-      },
-      {
-        id: 'bk-003',
-        bookingReference: 'SK672893',
-        userId: 'user-001',
-        flights: first ? [first] : [],
-        passengers: [],
-        pricing: first?.pricing || {
-          baseFare: 4200,
-          taxes: 480,
-          fees: 90,
-          totalPrice: 4770,
-          currency: 'INR',
-          fareBasis: 'Y0STANDARD',
-          fareFamily: 'economy',
-        },
-        status: 'pending',
-        paymentStatus: 'pending',
-        bookingDate: now,
-        createdAt: now,
-      },
-    ];
-  }
-
-  private findFlightsByIds(flightIds: string[]) {
-    return MOCK_FLIGHTS.filter((item) => flightIds.includes(item.flight.id));
-  }
-
-  private mergePricing(flights: Booking['flights']) {
-    if (!flights.length) {
-      return {
-        baseFare: 0,
-        taxes: 0,
-        fees: 0,
-        discount: 0,
-        totalPrice: 0,
-        currency: 'INR' as const,
-        fareBasis: 'Y0STANDARD',
-        fareFamily: 'economy' as const,
       };
+
+      if (details.data.segments[0]) {
+        const quote = await apiRequest<{ totalAmount: number; currency: string }>(
+          'flight',
+          '/api/v1/pricing/quote',
+          {
+            method: 'POST',
+            body: {
+              flightId: item.flightId,
+              seatCount: Math.max(item.seatCount, 1),
+            },
+          }
+        );
+
+        if (quote.success && quote.data) {
+          pricedFlight.pricing.baseFare = quote.data.totalAmount;
+          pricedFlight.pricing.totalPrice = quote.data.totalAmount;
+          pricedFlight.pricing.currency = quote.data.currency;
+        }
+      }
     }
 
-    const aggregated = flights.reduce(
-      (acc, current) => {
-        acc.baseFare += current.pricing.baseFare;
-        acc.taxes += current.pricing.taxes;
-        acc.fees += current.pricing.fees;
-        acc.discount += current.pricing.discount || 0;
-        return acc;
-      },
-      { baseFare: 0, taxes: 0, fees: 0, discount: 0 }
-    );
+    const flights = pricedFlight ? [pricedFlight] : [];
 
     return {
-      baseFare: aggregated.baseFare,
-      taxes: aggregated.taxes,
-      fees: aggregated.fees,
-      discount: aggregated.discount,
-      totalPrice:
-        aggregated.baseFare + aggregated.taxes + aggregated.fees - aggregated.discount,
-      currency: flights[0].pricing.currency,
-      fareBasis: flights[0].pricing.fareBasis,
-      fareFamily: flights[0].pricing.fareFamily,
+      id: item.bookingId,
+      bookingReference: item.bookingId,
+      userId: item.userId,
+      flights,
+      passengers: Array.from({ length: Math.max(item.seatCount, 1) }, makeFallbackPassenger),
+      pricing: {
+        baseFare: flights[0]?.pricing.baseFare || 0,
+        taxes: flights[0]?.pricing.taxes || 0,
+        fees: flights[0]?.pricing.fees || 0,
+        totalPrice: flights[0]?.pricing.totalPrice || 0,
+        currency: 'INR',
+        fareBasis: 'Y0STANDARD',
+        fareFamily: 'economy',
+      },
+      status: statusToBookingStatus(item.status),
+      paymentStatus: statusToPaymentStatus(item.status),
+      bookingDate: toDate(item.updatedAt),
+      createdAt: toDate(item.updatedAt),
     };
   }
 
-  /**
-   * Create a booking reservation
-   */
-  async reserve(
-    bookingRequest: BookingRequest
-  ): Promise<ApiResponse<Booking>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const bookingId = `bk-${Date.now()}`;
-        const flights = this.findFlightsByIds(bookingRequest.flightIds);
-        const booking: Booking = {
-          id: bookingId,
-          bookingReference: this.generatePNR(),
-          userId: 'user-001',
-          flights,
-          passengers: bookingRequest.passengers,
-          pricing: this.mergePricing(flights),
-          status: 'pending',
-          paymentStatus: 'pending',
-          bookingDate: new Date(),
-          createdAt: new Date(),
-        };
-        this.bookings.set(booking.id, booking);
+  async reserve(bookingRequest: BookingRequest): Promise<ApiResponse<Booking>> {
+    const flightId = bookingRequest.flightIds[0];
 
-        resolve({
-          success: true,
-          data: booking,
-          timestamp: new Date(),
-        });
-      }, 600);
-    });
-  }
-
-  /**
-   * Confirm a booking
-   */
-  async confirmBooking(
-    request: BookingConfirmationRequest
-  ): Promise<ApiResponse<Booking>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const booking = this.bookings.get(request.bookingId);
-        if (!booking) {
-          resolve({
-            success: false,
-            error: {
-              code: 'BOOKING_NOT_FOUND',
-              message: 'Booking not found',
-            },
-            timestamp: new Date(),
-          });
-          return;
-        }
-
-        const confirmed: Booking = {
-          ...booking,
-          status: 'confirmed',
-          paymentStatus: 'captured',
-        };
-        this.bookings.set(request.bookingId, confirmed);
-
-        resolve({
-          success: true,
-          data: confirmed,
-          timestamp: new Date(),
-        });
-      }, 700);
-    });
-  }
-
-  /**
-   * Get booking details
-   */
-  async getBooking(bookingId: string): Promise<ApiResponse<Booking>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const booking = this.bookings.get(bookingId);
-        if (!booking) {
-          resolve({
-            success: false,
-            error: {
-              code: 'BOOKING_NOT_FOUND',
-              message: 'Booking not found',
-            },
-            timestamp: new Date(),
-          });
-          return;
-        }
-
-        resolve({
-          success: true,
-          data: booking,
-          timestamp: new Date(),
-        });
-      }, 300);
-    });
-  }
-
-  /**
-   * Get user's bookings
-   */
-  async getUserBookings(): Promise<ApiResponse<Booking[]>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const bookings = Array.from(this.bookings.values()).filter(
-          (booking) => booking.userId === 'user-001'
-        );
-
-        resolve({
-          success: true,
-          data: bookings,
-          timestamp: new Date(),
-        });
-      }, 400);
-    });
-  }
-
-  /**
-   * Cancel a booking
-   */
-  async cancelBooking(bookingId: string): Promise<ApiResponse<Booking>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const booking = this.bookings.get(bookingId);
-        if (!booking) {
-          resolve({
-            success: false,
-            error: {
-              code: 'BOOKING_NOT_FOUND',
-              message: 'Booking not found',
-            },
-            timestamp: new Date(),
-          });
-          return;
-        }
-
-        const cancelled: Booking = {
-          ...booking,
-          status: 'cancelled',
-          paymentStatus: 'refunded',
-        };
-        this.bookings.set(bookingId, cancelled);
-
-        resolve({
-          success: true,
-          data: cancelled,
-          timestamp: new Date(),
-        });
-      }, 500);
-    });
-  }
-
-  /**
-   * POST /api/v1/bookings/{bookingId}/change
-   */
-  async changeBooking(request: BookingChangeRequest): Promise<ApiResponse<Booking>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const booking = this.bookings.get(request.bookingId);
-        if (!booking) {
-          resolve({
-            success: false,
-            error: {
-              code: 'BOOKING_NOT_FOUND',
-              message: 'Booking not found',
-            },
-            timestamp: new Date(),
-          });
-          return;
-        }
-
-        const flights = this.findFlightsByIds(request.flightIds);
-        const changed: Booking = {
-          ...booking,
-          flights,
-          pricing: this.mergePricing(flights),
-          status: 'confirmed',
-        };
-        this.bookings.set(request.bookingId, changed);
-
-        resolve({
-          success: true,
-          data: changed,
-          timestamp: new Date(),
-        });
-      }, 550);
-    });
-  }
-
-  /**
-   * Generate a random PNR (Passenger Name Record)
-   */
-  private generatePNR(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    if (!flightId) {
+      return {
+        success: false,
+        error: {
+          code: 'INVALID_REQUEST',
+          message: 'At least one flightId is required',
+        },
+        timestamp: new Date(),
+      };
     }
-    return result;
+
+    const response = await apiRequest<BackendBooking>('booking', '/api/v1/bookings/reserve', {
+      method: 'POST',
+      body: {
+        flightId,
+        seatCount: Math.max(bookingRequest.passengers.length, 1),
+      },
+    });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<Booking>(response);
+    }
+
+    const booking = await this.mapBackendBooking(response.data);
+    booking.passengers = bookingRequest.passengers;
+
+    return {
+      success: true,
+      data: booking,
+      timestamp: response.timestamp,
+    };
+  }
+
+  async confirmBooking(request: BookingConfirmationRequest): Promise<ApiResponse<Booking>> {
+    const response = await apiRequest<BackendBooking>('booking', `/api/v1/bookings/${request.bookingId}/confirm`, {
+      method: 'POST',
+    });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<Booking>(response);
+    }
+
+    return {
+      success: true,
+      data: await this.mapBackendBooking(response.data),
+      timestamp: response.timestamp,
+    };
+  }
+
+  async getBooking(bookingId: string): Promise<ApiResponse<Booking>> {
+    const response = await apiRequest<BackendBooking>('booking', `/api/v1/bookings/${bookingId}`);
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<Booking>(response);
+    }
+
+    return {
+      success: true,
+      data: await this.mapBackendBooking(response.data),
+      timestamp: response.timestamp,
+    };
+  }
+
+  async getUserBookings(): Promise<ApiResponse<Booking[]>> {
+    const context = getAuthContext();
+    const response = await apiRequest<BackendBookingList>('booking', '/api/v1/bookings', {
+      headers: {
+        'X-User-Id': context.userId,
+      },
+    });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<Booking[]>(response);
+    }
+
+    const bookings = await Promise.all(response.data.items.map((item) => this.mapBackendBooking(item)));
+
+    return {
+      success: true,
+      data: bookings,
+      timestamp: response.timestamp,
+    };
+  }
+
+  async cancelBooking(bookingId: string): Promise<ApiResponse<Booking>> {
+    const response = await apiRequest<BackendBooking>('booking', `/api/v1/bookings/${bookingId}/cancel`, {
+      method: 'POST',
+    });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<Booking>(response);
+    }
+
+    return {
+      success: true,
+      data: await this.mapBackendBooking(response.data),
+      timestamp: response.timestamp,
+    };
+  }
+
+  async changeBooking(request: BookingChangeRequest): Promise<ApiResponse<Booking>> {
+    const response = await apiRequest<BackendBooking>('booking', `/api/v1/bookings/${request.bookingId}/change`, {
+      method: 'POST',
+      body: {
+        newFlightId: request.flightIds[0],
+      },
+    });
+
+    if (!response.success || !response.data) {
+      return toErrorResponse<Booking>(response);
+    }
+
+    return {
+      success: true,
+      data: await this.mapBackendBooking(response.data),
+      timestamp: response.timestamp,
+    };
   }
 }
 

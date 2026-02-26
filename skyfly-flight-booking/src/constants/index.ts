@@ -1,14 +1,7 @@
 /**
  * Constants Index
- * Central export for all constant data
  */
 
-export * from './airports';
-export * from './airlines';
-export * from './flights';
-export * from './users';
-
-export const API_BASE_URL = 'http://localhost:3000/api/v1';
 export const PAGE_SIZE = 12;
 export const SEARCH_DEBOUNCE_MS = 300;
 
