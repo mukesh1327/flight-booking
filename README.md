@@ -116,8 +116,8 @@ Coverage note:
   - Enforce OpenAPI-first contracts and shared error model.
   - Implement outbox + idempotent consumer pattern from day one.
   - Add contract tests and tracing before production rollout.
+  - See detailed ownership split: `USER_DATA_OWNERSHIP_CONTRACT.md`.
 - Phased roadmap:
   1. Build and stabilize the core 6 services.
   2. Add Kafka-driven async workflows and reliability hardening.
   3. Add advanced governance (OPA, compliance automation, deeper observability).
-

@@ -1,0 +1,112 @@
+.login-mock-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f3f6fa;
+}
+
+.login-mock-main {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 2fr 1fr;
+  flex: 1;
+}
+
+.login-mock-panel,
+.contract-preview {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #dce4ef;
+  padding: 20px;
+}
+
+.login-mock-title h1 {
+  margin: 0;
+  font-size: 30px;
+  color: #0f172a;
+}
+
+.login-mock-title p {
+  margin: 8px 0 0;
+  color: #475569;
+}
+
+.login-mode-switch {
+  margin: 20px 0;
+  display: flex;
+  gap: 10px;
+}
+
+.login-mode-switch button {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-mode-switch button.active {
+  background: #1d4ed8;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}
+
+.auth-block h2 {
+  margin-top: 0;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  margin: 12px 0;
+  gap: 6px;
+}
+
+.form-row label {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.form-row input,
+.form-row select {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.action-row {
+  margin: 16px 0;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.contract-preview h3 {
+  margin: 0;
+}
+
+.contract-preview p {
+  margin: 10px 0;
+  color: #1e293b;
+}
+
+.simple-note {
+  color: #475569;
+  font-size: 13px;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .login-mock-main {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+}

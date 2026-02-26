@@ -1,0 +1,17 @@
+FROM maven:3.9.9-eclipse-temurin-17 AS builder
+WORKDIR /app
+COPY pom.xml .
+RUN mvn -q -DskipTests dependency:go-offline
+COPY src ./src
+RUN mvn -DskipTests package
+
+FROM registry.access.redhat.com/ubi9/openjdk-17:latest
+WORKDIR /work/
+COPY --from=builder /app/target/quarkus-app/lib/ /work/lib/
+COPY --from=builder /app/target/quarkus-app/*.jar /work/
+COPY --from=builder /app/target/quarkus-app/app/ /work/app/
+COPY --from=builder /app/target/quarkus-app/quarkus/ /work/quarkus/
+
+EXPOSE 8082
+ENV JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0"
+CMD ["java", "-jar", "/work/quarkus-run.jar"]

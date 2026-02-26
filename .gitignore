@@ -39,7 +39,7 @@ build/
 # Dotnet
 
 bin
-.obj
+obj
 
 
 # Recat vite
@@ -67,3 +67,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+venv
+__pycache__
+*.pyc

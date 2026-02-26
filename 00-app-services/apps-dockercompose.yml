@@ -32,22 +32,69 @@ services:
     networks:
       - flight-booking-network
 
+# ------------- Flight service -------------
+
+  flight-service:
+    build:
+      context: ../flightservice
+      dockerfile: ../flightservice/Dockerfile.mvnbuild
+    container_name: flight-service
+    restart: always
+    ports:
+      - "8082:8082"
+    environment:
+      MYSQL_JDBC_URL: "jdbc:mysql://flightservice_mysql:3306/flight_booking"
+      MYSQL_USER: "root"
+      MYSQL_PASSWORD: "RedHat#123"
+    depends_on:
+      - auth-service
+    networks:
+      - flight-booking-network
+
 # ------------- Booking service -------------
 
-  # booking-service:
-  #   build: 
-  #     context: ../bookingservice
-  #     dockerfile: ../bookingservice/src/main/docker/Dockerfile.jvm
-  #   container_name: flightservice-booking
-  #   ports:
-  #     - "8081:8081"
-  #   restart: always
-  #   networks:
-  #     - flight-booking-network
+  booking-service:
+    build:
+      context: ../bookingservice
+      dockerfile: ../bookingservice/Dockerfile
+    container_name: booking-service
+    restart: always
+    ports:
+      - "8083:8083"
+    depends_on:
+      - auth-service
+    networks:
+      - flight-booking-network
 
-# ------------- Inventory service -------------
+# ------------- Customer service -------------
 
-# ------------- Search service -------------
+  customer-service:
+    build:
+      context: ../customerservice
+      dockerfile: ../customerservice/Dockerfile
+    container_name: customer-service
+    restart: always
+    ports:
+      - "8084:8084"
+    depends_on:
+      - auth-service
+    networks:
+      - flight-booking-network
+
+# ------------- Payment service -------------
+
+  payment-service:
+    build:
+      context: ../paymentservice
+      dockerfile: ../paymentservice/Dockerfile
+    container_name: payment-service
+    restart: always
+    ports:
+      - "8085:8085"
+    depends_on:
+      - auth-service
+    networks:
+      - flight-booking-network
 
 # ================= Network ========================
 
