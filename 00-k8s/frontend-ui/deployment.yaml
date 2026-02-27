@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: frontend-ui
-          image: skyfly/frontend-ui:latest
+          image: quay.io/mukeshs1306/frontend-ui:latest
           resources:
             requests:
               cpu: "100m"
@@ -24,9 +24,9 @@ spec:
             limits:
               cpu: "500m"
               memory: "256Mi"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
-            - containerPort: 5173
+            - containerPort: 8080
               name: http
           envFrom:
             - configMapRef:

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: skyfly/auth-service:latest
+          image: quay.io/mukeshs1306/auth-service:latest
           imagePullPolicy: IfNotPresent
           resources:
             requests:

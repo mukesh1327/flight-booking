@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: booking-service
-          image: skyfly/booking-service:latest
+          image: quay.io/mukeshs1306/booking-service:latest
           resources:
             requests:
               cpu: "100m"

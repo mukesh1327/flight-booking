@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: payment-service
-          image: skyfly/payment-service:latest
+          image: quay.io/mukeshs1306/payment-service:latest
           resources:
             requests:
               cpu: "100m"

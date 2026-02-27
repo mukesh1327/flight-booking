@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: customer-service
-          image: skyfly/customer-service:latest
+          image: quay.io/mukeshs1306/customer-service:latest
           resources:
             requests:
               cpu: "100m"

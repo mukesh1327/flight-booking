@@ -1,0 +1,14 @@
+FROM registry.redhat.io/ubi9/nginx-126:9.7
+
+# # Add built UI assets where S2I assemble expects application sources.
+# ADD dist/. .
+
+# Copy Vite build output while preserving folders (especially /assets).
+COPY --chown=1001:0 dist/. /opt/app-root/src/
+
+# Redirect nginx logs to container stdout/stderr for podman/oc logs.
+COPY --chown=1001:0 nginx/01-logging.conf /opt/app-root/etc/nginx.default.d/01-logging.conf
+
+EXPOSE 8080
+
+CMD nginx -g "daemon off;"
