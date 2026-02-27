@@ -72,6 +72,22 @@
   gap: 12px;
 }
 
+.auth-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  height: 1px;
+  background: #e2e8f0;
+}
+
 @media (max-width: 640px) {
   .auth-panel {
     padding: 20px;

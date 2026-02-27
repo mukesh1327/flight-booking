@@ -18,7 +18,7 @@ SERVICES=(
   "booking-service|dotnet|8083-bookingservice|Containerfile|booking-service"
   "customer-service|node|8084-customerservice|Containerfile|customer-service"
   "payment-service|python|8085-paymentservice|Containerfile|payment-service"
-  "frontend-ui|frontend|skyfly-flight-booking|Containerfile|frontend-ui"
+  "frontend-ui|frontend|skyfly-flight-booking|docker/Containerfile|frontend-ui"
 )
 
 for row in "${SERVICES[@]}"; do

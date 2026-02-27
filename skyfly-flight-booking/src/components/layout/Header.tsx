@@ -58,13 +58,16 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="user-avatar user-avatar-fallback">{avatarLabel}</div>
               )}
               <span className="user-name">{user.firstName}</span>
-              <button
-                className="logout-btn"
-                onClick={onLogout}
-                title="Logout"
-              >
-                →
-              </button>
+              {onLogout && (
+                <button
+                  className="logout-btn"
+                  onClick={onLogout}
+                  title="Log out"
+                  aria-label="Log out"
+                >
+                  Log out
+                </button>
+              )}
             </div>
           ) : (
             <Button variant="primary" size="sm" onClick={onLogin}>

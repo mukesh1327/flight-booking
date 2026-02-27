@@ -73,7 +73,8 @@ public class AuthApplicationService {
             .queryParam("code_challenge", codeChallenge)
             .queryParam("code_challenge_method", "S256")
             .queryParam("kc_idp_hint", properties.publicClient().googleIdpAlias())
-            .build(true)
+            .build()
+            .encode()
             .toUriString();
 
         return new PublicGoogleStartResponse(authorizationUrl, state, "S256");

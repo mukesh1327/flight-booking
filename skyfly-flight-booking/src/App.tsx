@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Booking, FlightSearchRequest, FlightWithPrice, PassengerInfo, PaymentMethod, User } from './types';
 import { useAuth, useBooking } from './hooks';
 import { bookingService, paymentService, userService } from './services';
@@ -21,7 +21,18 @@ interface ConfirmationState {
 }
 
 function App() {
-  const { user, isAuthenticated, isLoading: authLoading, error: authError, login, register, logout, setUser } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    isLoading: authLoading,
+    error: authError,
+    login,
+    startGoogleLogin,
+    completeGoogleLogin,
+    register,
+    logout,
+    setUser,
+  } = useAuth();
   const {
     userBookings,
     isLoading: bookingsLoading,
@@ -42,6 +53,36 @@ function App() {
   const [profileError, setProfileError] = useState<string | null>(null);
 
   const effectiveUser = useMemo(() => profileUser || user, [profileUser, user]);
+
+  useEffect(() => {
+    if (window.location.pathname !== '/auth/google/callback') {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+
+    if (!code || !state) {
+      setCurrentPage('auth');
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+
+    const finishGoogleLogin = async () => {
+      const success = await completeGoogleLogin(code, state);
+      if (success) {
+        const target = (sessionStorage.getItem('postAuthTarget') as AppPage | null) || 'home';
+        sessionStorage.removeItem('postAuthTarget');
+        setCurrentPage(target);
+      } else {
+        setCurrentPage('auth');
+      }
+      window.history.replaceState({}, '', '/');
+    };
+
+    void finishGoogleLogin();
+  }, [completeGoogleLogin]);
 
   const ensureAuthenticated = (target: AppPage) => {
     if (isAuthenticated) {
@@ -232,6 +273,11 @@ function App() {
     setCurrentPage(postAuthTarget);
   };
 
+  const handleContinueWithGoogle = async () => {
+    sessionStorage.setItem('postAuthTarget', postAuthTarget);
+    await startGoogleLogin();
+  };
+
   const handleCancelBooking = async (bookingId: string) => {
     await cancelBooking(bookingId);
     await getUserBookings();
@@ -253,6 +299,7 @@ function App() {
             setPostAuthTarget('home');
             setCurrentPage('auth');
           }}
+          onLogout={handleLogout}
           user={effectiveUser}
           onNavigate={navigate}
         />
@@ -266,6 +313,7 @@ function App() {
             setPostAuthTarget('search-results');
             setCurrentPage('auth');
           }}
+          onLogout={handleLogout}
           user={effectiveUser}
           onNavigate={navigate}
         />
@@ -274,8 +322,10 @@ function App() {
       {currentPage === 'auth' && (
         <AuthPage
           isLoading={authLoading}
+          isGoogleLoading={authLoading}
           error={authError}
           onLogin={login}
+          onContinueWithGoogle={handleContinueWithGoogle}
           onRegister={register}
           onBackHome={() => setCurrentPage('home')}
           onSuccess={handleAuthSuccess}
@@ -291,6 +341,7 @@ function App() {
           error={checkoutError}
           onBackToResults={() => setCurrentPage('search-results')}
           onNavigate={navigate}
+          onLogout={handleLogout}
           onConfirmBooking={handleConfirmBooking}
           onSuccess={handleCheckoutSuccess}
         />
@@ -313,6 +364,7 @@ function App() {
           onNavigate={navigate}
           onLoad={getUserBookings}
           onCancel={handleCancelBooking}
+          onLogout={handleLogout}
         />
       )}
 
@@ -324,6 +376,7 @@ function App() {
           onNavigate={navigate}
           onLoadProfile={handleLoadProfile}
           onSaveProfile={handleSaveProfile}
+          onLogout={handleLogout}
         />
       )}
 

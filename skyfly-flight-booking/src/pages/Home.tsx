@@ -13,6 +13,7 @@ interface HomePageProps {
   onSearch: (criteria: FlightSearchRequest) => void;
   isSearching?: boolean;
   onLogin?: () => void;
+  onLogout?: () => void;
   user?: User | null;
   onNavigate?: (path: string) => void;
 }
@@ -21,12 +22,13 @@ export const HomePage: React.FC<HomePageProps> = ({
   onSearch,
   isSearching = false,
   onLogin,
+  onLogout,
   user,
   onNavigate,
 }) => {
   return (
     <div className="home-page">
-      <Header user={user} onNavigate={onNavigate} onLogin={onLogin} />
+      <Header user={user} onNavigate={onNavigate} onLogin={onLogin} onLogout={onLogout} />
 
       {/* Hero Section */}
       <section className="hero-section">

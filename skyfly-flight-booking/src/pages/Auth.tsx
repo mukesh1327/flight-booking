@@ -4,8 +4,10 @@ import './Auth.css';
 
 interface AuthPageProps {
   isLoading: boolean;
+  isGoogleLoading?: boolean;
   error: string | null;
   onLogin: (email: string, password: string) => Promise<boolean>;
+  onContinueWithGoogle: () => Promise<void>;
   onRegister: (
     email: string,
     password: string,
@@ -18,8 +20,10 @@ interface AuthPageProps {
 
 export const AuthPage: React.FC<AuthPageProps> = ({
   isLoading,
+  isGoogleLoading = false,
   error,
   onLogin,
+  onContinueWithGoogle,
   onRegister,
   onBackHome,
   onSuccess,
@@ -125,6 +129,24 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             <Button type="submit" isLoading={isLoading} size="lg" style={{ width: '100%' }}>
               {mode === 'login' ? 'Sign In' : 'Create Account'}
             </Button>
+
+            {mode === 'login' && (
+              <>
+                <div className="auth-divider">
+                  <span>or</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  isLoading={isGoogleLoading}
+                  onClick={onContinueWithGoogle}
+                  size="lg"
+                  style={{ width: '100%' }}
+                >
+                  Continue with Google
+                </Button>
+              </>
+            )}
 
             <Button
               type="button"

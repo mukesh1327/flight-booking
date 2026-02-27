@@ -11,6 +11,7 @@ interface CheckoutPageProps {
   error: string | null;
   onBackToResults: () => void;
   onNavigate: (path: string) => void;
+  onLogout: () => void;
   onConfirmBooking: (payload: {
     passengers: PassengerInfo[];
     contactEmail: string;
@@ -75,6 +76,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   error,
   onBackToResults,
   onNavigate,
+  onLogout,
   onConfirmBooking,
   onSuccess,
 }) => {
@@ -142,6 +144,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
             : undefined
         }
         onNavigate={onNavigate}
+        onLogout={onLogout}
       />
 
       <main className="checkout-main">

@@ -12,6 +12,7 @@ data:
   KEYCLOAK_PUBLIC_REALM: "skyfly-public"
   KEYCLOAK_CORP_REALM: "skyfly-corp"
   KEYCLOAK_CLIENT_ID_PUBLIC: "skyfly-public-web"
+  PUBLIC_REDIRECT_URI: "http://localhost:5173/auth/google/callback"
   KEYCLOAK_CLIENT_ID_CORP: "skyfly-corp-web"
   SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-auth:5432/authdb"
   SPRING_DATASOURCE_USERNAME: "auth_user"

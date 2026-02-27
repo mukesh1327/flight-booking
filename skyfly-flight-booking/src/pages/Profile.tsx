@@ -10,6 +10,7 @@ interface ProfilePageProps {
   onNavigate: (path: string) => void;
   onLoadProfile: () => Promise<User | null>;
   onSaveProfile: (updates: Partial<User>) => Promise<User | null>;
+  onLogout: () => void;
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
@@ -19,6 +20,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onNavigate,
   onLoadProfile,
   onSaveProfile,
+  onLogout,
 }) => {
   const [firstName, setFirstName] = useState(user?.firstName || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
@@ -51,7 +53,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
   return (
     <div className="profile-page">
-      <Header user={user} onNavigate={onNavigate} />
+      <Header user={user} onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="profile-main">
         <Card className="profile-card">

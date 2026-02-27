@@ -122,18 +122,20 @@
 }
 
 .logout-btn {
-  background: none;
-  border: none;
-  color: #0066cc;
-  font-size: 18px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: background 0.3s ease;
+  padding: 6px 10px;
+  border-radius: 999px;
+  transition: all 0.3s ease;
 }
 
 .logout-btn:hover {
-  background: rgba(0, 102, 204, 0.1);
+  background: #dbeafe;
+  border-color: #93c5fd;
 }
 
 /* ============ Mobile Menu ============ */

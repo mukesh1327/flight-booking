@@ -14,6 +14,7 @@ interface SearchResultsPageProps {
   initialCriteria: FlightSearchRequest;
   onSelectFlight?: (flight: FlightWithPrice) => void;
   onLogin?: () => void;
+  onLogout?: () => void;
   user?: User | null;
   onNavigate?: (path: string) => void;
 }
@@ -22,6 +23,7 @@ export const SearchResultsPage: React.FC<SearchResultsPageProps> = ({
   initialCriteria,
   onSelectFlight,
   onLogin,
+  onLogout,
   user,
   onNavigate,
 }) => {
@@ -48,7 +50,7 @@ export const SearchResultsPage: React.FC<SearchResultsPageProps> = ({
 
   return (
     <div className="search-results-page">
-      <Header user={user} onNavigate={onNavigate} onLogin={onLogin} />
+      <Header user={user} onNavigate={onNavigate} onLogin={onLogin} onLogout={onLogout} />
 
       <div className="search-results-container">
         {/* Sticky Search Form */}

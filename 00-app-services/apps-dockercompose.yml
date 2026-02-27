@@ -19,6 +19,7 @@ services:
       KEYCLOAK_CORP_REALM: "skyfly-corp"
       KEYCLOAK_CLIENT_ID_PUBLIC: "skyfly-public-web"
       KEYCLOAK_CLIENT_SECRET_PUBLIC: ""
+      PUBLIC_REDIRECT_URI: "http://localhost:5173/auth/google/callback"
       KEYCLOAK_CLIENT_ID_CORP: "skyfly-corp-web"
       KEYCLOAK_CLIENT_SECRET_CORP: ""
       GOOGLE_IDP_ALIAS: "google"

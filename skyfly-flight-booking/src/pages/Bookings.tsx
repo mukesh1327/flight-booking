@@ -11,6 +11,7 @@ interface BookingsPageProps {
   onNavigate: (path: string) => void;
   onLoad: () => Promise<void>;
   onCancel: (bookingId: string) => Promise<void>;
+  onLogout: () => void;
 }
 
 export const BookingsPage: React.FC<BookingsPageProps> = ({
@@ -21,6 +22,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({
   onNavigate,
   onLoad,
   onCancel,
+  onLogout,
 }) => {
   useEffect(() => {
     onLoad();
@@ -41,6 +43,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({
             : undefined
         }
         onNavigate={onNavigate}
+        onLogout={onLogout}
       />
 
       <main className="bookings-main">
